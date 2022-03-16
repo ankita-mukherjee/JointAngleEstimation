@@ -288,7 +288,7 @@ def jointAngle(joint):
     return np.degrees(angle)
 
     # Load the input images.
-work_path = "./dl007/shoext/"
+work_path = "./dl007/shoflex/"
 # work_path = "./content/dltest/"
 dir_list = next(os.walk(work_path))[1] # list folder 
 print (dir_list)
