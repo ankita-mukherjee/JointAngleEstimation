@@ -227,6 +227,20 @@ def movenet(input_image):
     keypoints_with_scores = outputs['output_0'].numpy()
     return keypoints_with_scores
 
+    raise ValueError("Unsupported model name: %s" % model_name)
+
+def movenet(input_image):
+
+    model = module.signatures['serving_default']
+
+    # SavedModel format expects tensor type of int32.
+    input_image = tf.cast(input_image, dtype=tf.int32)
+    # Run model inference.
+    outputs = model(input_image)
+    # Output is a [1, 1, 17, 3] tensor.
+    keypoints_with_scores = outputs['output_0'].numpy()
+    return keypoints_with_scores
+
 
 
 # Follow the cosin rule to calulate the joint angles
@@ -299,7 +313,7 @@ for folder_name in dir_list:
     dir_list = os.listdir(path)
     print("Files and directories in '", path, "' :")
     img_files = list(filter(lambda x: '.jpg' in x, dir_list))
-    print(sorted(img_files))
+    # print(sorted(img_files))
     joints = ["left_elbow", "right_elbow", "left_shoulder", "right_shoulder", "left_hip", "right_hip", "left_knee", "right_knee"]
 
 
@@ -339,7 +353,9 @@ for folder_name in dir_list:
         output_overlay = draw_prediction_on_image(np.squeeze(display_image.numpy(), axis=0), keypoint_with_scores, crop_region=None, close_figure=False, output_image_height=None)
 
         fig= plt.figure(figsize=(15, 15))
-
+        plt.imshow(output_overlay)
+        plt.margins(0,0)
+        plt.axis('off')
         # Output annotate
         pix_index = 0 
         for joint in joints:
@@ -350,23 +366,30 @@ for folder_name in dir_list:
             infor = joint + " :" + str(round(jointAngle(joint),2)) + "\N{DEGREE SIGN}"
             bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
             # infor = "left_shoulder: "+ str(round(jointAngle("left_shoulder"),2))
+            
+            # plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
             plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
             pix_index = pix_index+1
-
+        
         ####
         col_num=1 #back to the first col
         row_num=row_num+1 #move to the next row
         ####
 
-        #plt.draw()
-        #plt.imshow(output_overlay)
+        # plt.draw()
+        # plt.imshow(output_overlay)
+        
+        # img = Image.open(output_overlay)
+        
 
         isFile = os.path.isdir(path+"process/")
         if not isFile:
             os.mkdir(path+"process/")
         ImageName = path + "process/P_" + imageFile
-        plt.imsave(ImageName, output_overlay)
-       
+        
+        plt.savefig(ImageName,bbox_inches='tight',pad_inches = 0)
+        # plt.imsave(ImageName, output_overlay)
+        plt.close('all')
 
     wb.save(path+"process/P_"+folder_name+".xls")
 
