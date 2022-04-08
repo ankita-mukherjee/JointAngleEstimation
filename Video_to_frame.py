@@ -1,7 +1,8 @@
+# This file extract frames from the video
 import cv2
 import os
 
-path = "./dl009/elbflex/"
+path = "./Videos/dl009/elbflex/"
 dir_list = os.listdir(path)
 video_files = list(filter(lambda x: '.avi' in x, dir_list)) # Keep all video files
 print('Video Files \n:', video_files)

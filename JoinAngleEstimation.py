@@ -1,4 +1,3 @@
-# Import matplotlib libraries
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from tensorflow_docs.vis import embed
@@ -6,6 +5,7 @@ from xlwt import *
 from xlrd import open_workbook
 from IPython.display import HTML, display
 from AngleFunction import jointAngle
+from excelSort import sortColum
 
 import tensorflow as tf
 import tensorflow_hub as hub
@@ -207,10 +207,8 @@ def progress(value, max=100):
       </progress>
   """.format(value=value, max=max))
 
-
+# Chooe DNN models
 model_name = "movenet_thunder" #@param ["movenet_lightning", "movenet_thunder", "movenet_lightning_f16.tflite", "movenet_thunder_f16.tflite", "movenet_lightning_int8.tflite", "movenet_thunder_int8.tflite"]
-
-
 if "movenet_thunder" in model_name:
     module = hub.load("https://tfhub.dev/google/movenet/singlepose/thunder/4")
     input_size = 256
@@ -230,8 +228,8 @@ def movenet(input_image):
     return keypoints_with_scores
 
 
-# Load the input images.
-work_path = "./dl009/elbflex/"
+# Load the input video frames.
+work_path = "./Videos/dl009/elbflex/"
 # work_path = "./content/dltest/"
 dir_list = next(os.walk(work_path))[1] # list folder 
 print (dir_list)
@@ -245,8 +243,7 @@ for folder_name in dir_list:
     # print(sorted(img_files))
     joints = ["left_elbow", "right_elbow", "left_shoulder", "right_shoulder", "left_hip", "right_hip", "left_knee", "right_knee"]
 
-
-    # excel
+    # Angel to excel
     # add_sheet is used to create sheet.
     wb = Workbook()
     sheet1 = wb.add_sheet('Angles')
@@ -304,13 +301,8 @@ for folder_name in dir_list:
         col_num=1 #back to the first col
         row_num=row_num+1 #move to the next row
         ####
-
-        # plt.draw()
-        # plt.imshow(output_overlay)
         
-        # img = Image.open(output_overlay)
-        
-
+        # Store the processed images
         isFile = os.path.isdir(path+"process/")
         if not isFile:
             os.mkdir(path+"process/")
@@ -319,26 +311,8 @@ for folder_name in dir_list:
         plt.savefig(ImageName,bbox_inches='tight',pad_inches = 0)
         # plt.imsave(ImageName, output_overlay)
         plt.close('all')
-
-    wb.save(path+"process/P_"+folder_name+".xls")
-
-    #excel sort function
-    target_column = 0     # This example only has 1 column, and it is 0 indexed
-    book = open_workbook(path+"process/P_"+folder_name+".xls")
-    sheet = book.sheets()[0]
-    data = [sheet.row_values(i) for i in range(sheet.nrows)]
-    labels = data[0]    # Don't sort our headers
-    data = data[1:]     # Data begins on the second row
-    data.sort(key=lambda x: x[target_column])
-
-    bk = xlwt.Workbook()
-    sheet = bk.add_sheet(sheet.name)
-
-    for idx, label in enumerate(labels):
-         sheet.write(0, idx, label)
-
-    for idx_r, row in enumerate(data):
-        for idx_c, value in enumerate(row):
-            sheet.write(idx_r+1, idx_c, value)
-    bk.save(path+"process/P_"+folder_name+".xls")
-    #excel sort function
+    
+    #save and sort the excle
+    excelFile = path+"process/P_"+folder_name+".xls"
+    wb.save(excelFile)
+    sortColum(excelFile)
