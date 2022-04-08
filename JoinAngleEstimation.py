@@ -233,10 +233,10 @@ def movenet(input_image):
 work_path = "./Videos/dl009/elbflex/"
 # work_path = "./content/dltest/"
 dir_list = next(os.walk(work_path))[1] # list folder 
-print (dir_list)
+print('Folders contain frames:',dir_list)
 
 for folder_name in dir_list:
-    print(folder_name)
+    print('Start Processing------------------------------------->:', folder_name)
     path = work_path+folder_name+"/"    
     dir_list = os.listdir(path)
     print("Files and directories in '", path, "' :")
@@ -312,7 +312,8 @@ for folder_name in dir_list:
         plt.savefig(ImageName,bbox_inches='tight',pad_inches = 0)
         # plt.imsave(ImageName, output_overlay)
         plt.close('all')
-    
+
+    print('Finished Processing------------------------------------->:', folder_name)
     #save and sort the excle
     excelFile = path+"process/P_"+folder_name+".xls"
     wb.save(excelFile)
