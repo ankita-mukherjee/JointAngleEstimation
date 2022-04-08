@@ -192,21 +192,6 @@ def draw_prediction_on_image(
          interpolation=cv2.INTER_CUBIC)
   return image_from_plot
 
-def to_gif(images, fps):
-  """Converts image sequence (4D numpy array) to gif."""
-  imageio.mimsave('./animation.gif', images, fps=fps)
-  return embed.embed_file('./animation.gif')
-
-def progress(value, max=100):
-  return HTML("""
-      <progress
-          value='{value}'
-          max='{max}',
-          style='width: 100%'
-      >
-          {value}
-      </progress>
-  """.format(value=value, max=max))
 
 # Chooe DNN models
 model_name = "movenet_thunder" #@param ["movenet_lightning", "movenet_thunder", "movenet_lightning_f16.tflite", "movenet_thunder_f16.tflite", "movenet_lightning_int8.tflite", "movenet_thunder_int8.tflite"]
@@ -239,7 +224,6 @@ for folder_name in dir_list:
     print('Start Processing------------------------------------->:', folder_name)
     path = work_path+folder_name+"/"    
     dir_list = os.listdir(path)
-    print("Files and directories in '", path, "' :")
     img_files = list(filter(lambda x: '.jpg' in x, dir_list))
     # print(sorted(img_files))
     joints = ["left_elbow", "right_elbow", "left_shoulder", "right_shoulder", "left_hip", "right_hip", "left_knee", "right_knee"]
@@ -313,8 +297,9 @@ for folder_name in dir_list:
         # plt.imsave(ImageName, output_overlay)
         plt.close('all')
 
-    print('Finished Processing------------------------------------->:', folder_name)
+    print('Finished Processing---------------------------------->:', folder_name)
     #save and sort the excle
     excelFile = path+"process/P_"+folder_name+".xls"
     wb.save(excelFile)
     sortColum(excelFile)
+    
