@@ -12,9 +12,10 @@ import tensorflow_hub as hub
 import matplotlib.patches as patches
 
 import numpy as np
+import xlwt
 import cv2
 import os
-import xlwt
+
 
 # Some modules to display an animation using imageio.
 import imageio

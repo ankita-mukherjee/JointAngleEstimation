@@ -1,5 +1,6 @@
     
 from xlrd import open_workbook
+import xlwt
 
 def sortColum(filename):
 
@@ -22,5 +23,5 @@ def sortColum(filename):
     for idx_r, row in enumerate(data):
         for idx_c, value in enumerate(row):
             sheet.write(idx_r+1, idx_c, value)
-    bk.save(path+"process/P_"+folder_name+".xls")
+    bk.save(filename)
     #excel column sort function end
