@@ -213,93 +213,96 @@ def movenet(input_image):
     keypoints_with_scores = outputs['output_0'].numpy()
     return keypoints_with_scores
 
-
 # Load the input video frames.
-work_path = "./Videos/dl009/elbflex/"
-# work_path = "./content/dltest/"
-dir_list = next(os.walk(work_path))[1] # list folder 
-print('Folders contain frames:',dir_list)
+root_path = "./Videos/Samples/" # work_path = "./content/dltest/"
+actions = next(os.walk(root_path))[1] # list folder 
+print('Folders contain frames:',actions)
+for action in actions:
+    print ("Start processing", action)
+    work_path = root_path + action +'/'
+    dir_list = next(os.walk(work_path))[1] # list folder 
+    print('Folders contain frames:',dir_list)
 
-for folder_name in dir_list:
-    print('Start Processing------------------------------------->:', folder_name)
-    path = work_path+folder_name+"/"    
-    dir_list = os.listdir(path)
-    img_files = list(filter(lambda x: '.jpg' in x, dir_list))
-    # print(sorted(img_files))
-    joints = ["left_elbow", "right_elbow", "left_shoulder", "right_shoulder", "left_hip", "right_hip", "left_knee", "right_knee"]
+    for folder_name in dir_list:
+        print('Start Processing------------------------------------->:', folder_name)
+        path = work_path+folder_name+"/"    
+        dir_list = os.listdir(path)
+        img_files = list(filter(lambda x: '.jpg' in x, dir_list))
+        # print(sorted(img_files))
+        joints = ["left_elbow", "right_elbow", "left_shoulder", "right_shoulder", "left_hip", "right_hip", "left_knee", "right_knee"]
 
-    # Angel to excel
-    # add_sheet is used to create sheet.
-    wb = Workbook()
-    sheet1 = wb.add_sheet('Angles')
-    row_num = 1
-    col_num =1
+        # Angel to excel
+        # add_sheet is used to create sheet.
+        wb = Workbook()
+        sheet1 = wb.add_sheet('Angles')
+        row_num = 1
+        col_num =1
 
-    col_num_initilize = 1
-    for joint in joints:  
-        sheet1.write(0, col_num_initilize, joint)
-        col_num_initilize =col_num_initilize+1
+        col_num_initilize = 1
+        for joint in joints:  
+            sheet1.write(0, col_num_initilize, joint)
+            col_num_initilize =col_num_initilize+1
 
-    for imageFile in sorted(img_files):
-        # print(imageFile)
+        for imageFile in sorted(img_files):
+            # print(imageFile)
 
-        # row col  
-        sheet1.write(row_num, 0, int(imageFile[:-4]))
+            # row col  
+            sheet1.write(row_num, 0, int(imageFile[:-4]))
 
-        image_path = path+imageFile
-        image = tf.io.read_file(image_path)
-        image = tf.image.decode_jpeg(image)
+            image_path = path+imageFile
+            image = tf.io.read_file(image_path)
+            image = tf.image.decode_jpeg(image)
 
-        # Resize and pad the image to keep the aspect ratio and fit the expected size.
-        input_image = tf.expand_dims(image, axis=0)
-        input_image = tf.image.resize_with_pad(input_image, input_size, input_size)
+            # Resize and pad the image to keep the aspect ratio and fit the expected size.
+            input_image = tf.expand_dims(image, axis=0)
+            input_image = tf.image.resize_with_pad(input_image, input_size, input_size)
 
-        # Run model inference.
-        keypoint_with_scores = movenet(input_image)
+            # Run model inference.
+            keypoint_with_scores = movenet(input_image)
 
-        # Visualize the predictions with image.
-        display_image = tf.expand_dims(image, axis=0)
-        display_image = tf.cast(tf.image.resize_with_pad(display_image, 1280, 1280), dtype=tf.int32)
+            # Visualize the predictions with image.
+            display_image = tf.expand_dims(image, axis=0)
+            display_image = tf.cast(tf.image.resize_with_pad(display_image, 1280, 1280), dtype=tf.int32)
 
-        output_overlay = draw_prediction_on_image(np.squeeze(display_image.numpy(), axis=0), keypoint_with_scores, crop_region=None, close_figure=False, output_image_height=None)
+            output_overlay = draw_prediction_on_image(np.squeeze(display_image.numpy(), axis=0), keypoint_with_scores, crop_region=None, close_figure=False, output_image_height=None)
 
-        fig= plt.figure(figsize=(15, 15))
-        plt.imshow(output_overlay)
-        plt.margins(0,0)
-        plt.axis('off')
-        # Output annotate
-        pix_index = 0 
-        for joint in joints:
-        
-            sheet1.write(row_num, col_num, float(str(round(jointAngle(joint,_keypoints_and_edges_for_display(keypoint_with_scores, 1280, 1280)),2))))
-            col_num=col_num+1 #move to the nex col
-
-            infor = joint + " :" + str(round(jointAngle(joint,_keypoints_and_edges_for_display(keypoint_with_scores, 1280, 1280)),2)) + "\N{DEGREE SIGN}"
-            bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
-            # infor = "left_shoulder: "+ str(round(jointAngle("left_shoulder"),2))
+            fig= plt.figure(figsize=(15, 15))
+            plt.imshow(output_overlay)
+            plt.margins(0,0)
+            plt.axis('off')
+            # Output annotate
+            pix_index = 0 
+            for joint in joints:
             
-            # plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
-            plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
-            pix_index = pix_index+1
-        
-        ####
-        col_num=1 #back to the first col
-        row_num=row_num+1 #move to the next row
-        ####
-        
-        # Store the processed images
-        isFile = os.path.isdir(path+"process/")
-        if not isFile:
-            os.mkdir(path+"process/")
-        ImageName = path + "process/P_" + imageFile
-        
-        plt.savefig(ImageName,bbox_inches='tight',pad_inches = 0)
-        # plt.imsave(ImageName, output_overlay)
-        plt.close('all')
+                sheet1.write(row_num, col_num, float(str(round(jointAngle(joint,_keypoints_and_edges_for_display(keypoint_with_scores, 1280, 1280)),2))))
+                col_num=col_num+1 #move to the nex col
 
-    print('Finished Processing---------------------------------->:', folder_name)
-    #save and sort the excle
-    excelFile = path+"process/P_"+folder_name+".xls"
-    wb.save(excelFile)
-    sortColum(excelFile)
-    
+                infor = joint + ": " + str(round(jointAngle(joint,_keypoints_and_edges_for_display(keypoint_with_scores, 1280, 1280)),2)) + "\N{DEGREE SIGN}"
+                bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
+                # infor = "left_shoulder: "+ str(round(jointAngle("left_shoulder"),2))
+                
+                # plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
+                plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
+                pix_index = pix_index+1
+            
+            ####
+            col_num=1 #back to the first col
+            row_num=row_num+1 #move to the next row
+            ####
+            
+            # Store the processed images
+            isFile = os.path.isdir(path+"process/")
+            if not isFile:
+                os.mkdir(path+"process/")
+            ImageName = path + "process/P_" + imageFile
+            
+            plt.savefig(ImageName,bbox_inches='tight',pad_inches = 0)
+            # plt.imsave(ImageName, output_overlay)
+            plt.close('all')
+
+        print('Finished Processing---------------------------------->:', folder_name)
+        #save and sort the excle
+        excelFile = path+"process/P_"+folder_name+".xls"
+        wb.save(excelFile)
+        sortColum(excelFile)
+        

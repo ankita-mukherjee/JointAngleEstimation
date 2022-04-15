@@ -2,15 +2,15 @@
 import cv2
 import os
 
-work_path = "./Videos/dl009/" # work_path = "./content/dltest/"
+work_path = "./Videos/Samples/" # work_path = "./content/dltest/"
 actions = next(os.walk(work_path))[1] # list folder 
 print('Folders contain frames:',actions)
 
 for action in actions:
     print ("Start processing", action)
-    path = './Videos/dl009/' + action +'/'
+    path = work_path + action +'/'
     dir_list = os.listdir(path)
-    video_files = list(filter(lambda x: '.avi' in x, dir_list)) # Keep all video files
+    video_files = list(filter(lambda x: '.mp4' in x, dir_list)) # Keep all video files
     print('Video Files \n:', video_files)
 
     for video_name in video_files:
