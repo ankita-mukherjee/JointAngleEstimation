@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
-from tensorflow_docs.vis import embed
+# from tensorflow_docs.vis import embed
 from xlwt import *
 from xlrd import open_workbook
 from IPython.display import HTML, display
@@ -236,14 +236,21 @@ for action in actions:
         wb = Workbook()
         sheet1 = wb.add_sheet('Angles')
         row_num = 1
-        col_num =1
+        col_num = 1
 
         col_num_initilize = 1
         for joint in joints:  
             sheet1.write(0, col_num_initilize, joint)
             col_num_initilize =col_num_initilize+1
 
-        for imageFile in sorted(img_files):
+        frames = sorted(img_files)
+        
+        joint_to_angle_list = dict()
+        for joint in joints:
+          joint_to_angle_list[joint] = [0] * len(frames)
+
+        # process each frame
+        for imageFile in frames:
             # print(imageFile)
 
             # row col  
@@ -266,24 +273,29 @@ for action in actions:
 
             output_overlay = draw_prediction_on_image(np.squeeze(display_image.numpy(), axis=0), keypoint_with_scores, crop_region=None, close_figure=False, output_image_height=None)
 
-            fig= plt.figure(figsize=(15, 15))
+            fig = plt.figure(figsize=(15, 15))
             plt.imshow(output_overlay)
             plt.margins(0,0)
             plt.axis('off')
             # Output annotate
             pix_index = 0 
             for joint in joints:
-            
-                sheet1.write(row_num, col_num, float(str(round(jointAngle(joint,_keypoints_and_edges_for_display(keypoint_with_scores, 1280, 1280)),2))))
-                col_num=col_num+1 #move to the nex col
+              joint_angle = round(jointAngle(joint,_keypoints_and_edges_for_display(keypoint_with_scores, 1280, 1280)),2)
 
-                infor = joint + ": " + str(round(jointAngle(joint,_keypoints_and_edges_for_display(keypoint_with_scores, 1280, 1280)),2)) + "\N{DEGREE SIGN}"
-                bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
-                # infor = "left_shoulder: "+ str(round(jointAngle("left_shoulder"),2))
-                
-                # plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
-                plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
-                pix_index = pix_index+1
+              # store joint_angle for later plot
+              frame_index = int(imageFile.split('.')[0])
+              joint_to_angle_list[joint][frame_index] = joint_angle
+          
+              sheet1.write(row_num, col_num, float(str(joint_angle)))
+              col_num=col_num+1 #move to the nex col
+
+              infor = joint + ": " + str(joint_angle) + "\N{DEGREE SIGN}"
+              bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
+              # infor = "left_shoulder: "+ str(round(jointAngle("left_shoulder"),2))
+              
+              # plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
+              plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
+              pix_index = pix_index+1
             
             ####
             col_num=1 #back to the first col
@@ -305,4 +317,21 @@ for action in actions:
         excelFile = path+"process/P_"+folder_name+".xls"
         wb.save(excelFile)
         sortColum(excelFile)
+
+        # plot graph of angle vs frames
+        font = {
+          'family': 'serif',
+          'color' : 'darkred',
+          'weight': 'normal',
+          'size'  : 16,
+        }
+        for joint in joints:
+          plt.figure(figsize=(20,10))
+          plt.plot(joint_to_angle_list[joint], 'k')
+          plt.title(f'{joint} joint angle', fontdict=font)
+          plt.xlabel('frames', fontdict=font)
+          plt.ylabel('joint angle', fontdict=font)
+          plt.savefig(f"{joint}-angle-vs-frames-plot.png")
+          plt.close()
+        plt.close("all")
         
