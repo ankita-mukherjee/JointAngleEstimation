@@ -3,6 +3,8 @@ import numpy as np
 import math
 from matplotlib import pyplot as plt
 
+import csv
+
 df =  pd.read_csv('dl009_kneeflex_020.csv')
 df1 = pd.read_csv('dl009_hipabd_001.csv')  
 df2 = pd.read_csv('dl009_hipext_001.csv')  
@@ -50,23 +52,55 @@ cKNEa = (hipknee_length**2 + kneank_length**2 - hipank_length**2) / (2 * hipknee
 kneeangle = np.arccos(cKNEa)
 thetaknee = kneeangle * 180 / math.pi
 
+thetaknee = pd.Series(thetaknee.tolist(), index=df["Frame"].values)
+thetahipabd = pd.Series(thetahipabd.tolist(), index=df1["Frame"].values)
+thetahipext = pd.Series(thetahipext.tolist(), index=df2["Frame"].values)
+thetahipflex = pd.Series(thetahipflex.tolist(), index=df3["Frame"].values)
 
-# plt.figure()
-# plt.subplot(1, 2, 1)
-# plt.plot(np.concatenate([df['ASI_X_mm'], df['KNE_X_mm']]), np.concatenate([df['ASI_Z_mm'], df['KNE_Z_mm']]), marker="+")
-# plt.plot(np.concatenate([df['ASI_X_mm'], df['ANK_X_mm']]), np.concatenate([df['ASI_Z_mm'], df['ANK_Z_mm']]), marker="+")
-# plt.plot(np.concatenate([df['KNE_X_mm'], df['ANK_X_mm']]), np.concatenate([df['KNE_Z_mm'], df['ANK_Z_mm']]), marker="+")
-
-# plt.subplot(1, 2, 2)
-# plt.plot(np.concatenate([df['ASI_Y_mm'], df['KNE_Y_mm']]), np.concatenate([df['ASI_Z_mm'], df['KNE_Z_mm']]), marker="+")
-# plt.plot(np.concatenate([df['ASI_Y_mm'], df['ANK_Y_mm']]), np.concatenate([df['ASI_Z_mm'], df['ANK_Z_mm']]), marker="+")
-# plt.plot(np.concatenate([df['KNE_Y_mm'], df['ANK_Y_mm']]), np.concatenate([df['KNE_Z_mm'], df['ANK_Z_mm']]), marker="+")
-
-# plt.savefig('python_fig.png')
-# plt.show()
+#print(thetaknee)
+#print(thetahipabd)
+#print(thetahipext)
+#print(thetahipflex)
 
 # save in csv
-np.savetxt(r'python_dl009_kneeflexoutput_020knee.csv', thetaknee, fmt='%.15f')
-np.savetxt(r'python_dl009_hipabdoutput_001hip.csv', thetahipabd, fmt='%.15f')
-np.savetxt(r'python_dl009_hipextoutput_001hip.csv', thetahipext, fmt='%.15f')
-np.savetxt(r'python_dl009_hipflexoutput_001hip.csv', thetahipflex, fmt='%.15f')
+thetaknee.to_csv("python_dl009_kneeflexoutput_020knee.csv", header=False)
+thetahipabd.to_csv("python_dl009_hipabdoutput_001hip.csv", header=False)
+thetahipext.to_csv("python_dl009_hipextoutput_001hip.csv", header=False)
+thetahipflex.to_csv("python_dl009_hipflexoutput_001hip.csv", header=False)
+
+# plot graph of angle vs frames
+plt.figure(figsize=(20,10))
+plt.plot(thetaknee.index, thetaknee.values, color = 'g')
+plt.xlabel('Frame',fontsize = 20)
+plt.ylabel('Joint Angle (Degrees)',fontsize = 20)
+plt.title('Knee Flexion Angle', fontsize = 20)
+plt.legend(labels = ['Vicon'])
+plt.savefig('/workspaces/JointAngleEstimation/Matlab/Plot_vicon_angle_vs_frames/Knee_Flexion.png')
+plt.show()
+
+plt.figure(figsize=(20,10))
+plt.plot(thetahipabd.index, thetahipabd.values, color = 'g')
+plt.xlabel('Frame',fontsize = 20)
+plt.ylabel('Joint Angle (Degrees)',fontsize = 20)
+plt.title('Hip Abduction Angle', fontsize = 20)
+plt.legend(labels = ['Vicon'])
+plt.savefig('/workspaces/JointAngleEstimation/Matlab/Plot_vicon_angle_vs_frames/Hip_Abduction.png')
+plt.show()
+
+plt.figure(figsize=(20,10))
+plt.plot(thetahipext.index, thetahipext.values, color = 'g')
+plt.xlabel('Frame',fontsize = 20)
+plt.ylabel('Joint Angle (Degrees)', fontsize = 20)
+plt.title('Hip Extension Angle', fontsize = 20)
+plt.legend(labels = ['Vicon'])
+plt.savefig('/workspaces/JointAngleEstimation/Matlab/Plot_vicon_angle_vs_frames/Hip_Extension.png')
+plt.show()
+
+plt.figure(figsize=(20,10))
+plt.plot(thetahipflex.index, thetahipflex.values, color = 'g')
+plt.xlabel('Frame',fontsize = 20)
+plt.ylabel('Joint Angle (Degrees)',fontsize = 20)
+plt.title('Hip Flexion Angle', fontsize = 20)
+plt.legend(labels = ['Vicon'])
+plt.savefig('/workspaces/JointAngleEstimation/Matlab/Plot_vicon_angle_vs_frames/Hip_Flexion.png')
+plt.show()
