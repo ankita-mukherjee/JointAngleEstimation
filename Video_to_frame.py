@@ -10,7 +10,7 @@ for action in actions:
     print ("Start processing", action)
     path = work_path + action +'/'
     dir_list = os.listdir(path)
-    video_files = list(filter(lambda x: '.mp4' in x, dir_list)) # Keep all video files
+    video_files = list(filter(lambda x: '.avi' in x, dir_list)) # Keep all video files
     print('Video Files \n:', video_files)
 
     for video_name in video_files:
