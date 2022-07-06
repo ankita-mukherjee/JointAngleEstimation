@@ -6,6 +6,7 @@ import csv
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 
+
 # from sklearn.metrics import matthews_corrcoef
 import scipy
 from math import sqrt
@@ -23,56 +24,207 @@ plt.rcParams["figure.figsize"] = [7.00, 3.50]
 plt.rcParams["figure.autolayout"] = True
 plt.rcParams.update({"font.size": 18})
 
+
 trials = [
     {
-        "vicon": "/workspaces/JointAngleEstimation/Matlab/python_dl102_elbflexoutput_010elb.csv",
-        "model": "/workspaces/JointAngleEstimation/CSV_Output/P_Frames-dl102_elbflex_010.csv",
-        "name": "trial 010",
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_001.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_001.csv",
+        "name": "trial 001",
         "skip_lo": 2,
-        "skip_hi": 117,
+        "skip_hi": 208,
         "Vicon_skip_lo": 9,
-        "Vicon_skip_hi": 117,
+        "Vicon_skip_hi": 206,
         "color": "r",
     },
     {
-        "vicon": "/workspaces/JointAngleEstimation/Matlab/python_dl102_elbflexoutput_013elb.csv",
-        "model": "/workspaces/JointAngleEstimation/CSV_Output/P_Frames-dl102_elbflex_013.csv",
-        "name": "trial 013",
-        "skip_lo": 2,
-        "skip_hi": 149,
-        "Vicon_skip_lo": 9,
-        "Vicon_skip_hi": 149,
-        "color": "b",
-    },
-    {
-        "vicon": "/workspaces/JointAngleEstimation/Matlab/python_dl102_elbflexoutput_016elb.csv",
-        "model": "/workspaces/JointAngleEstimation/CSV_Output/P_Frames-dl102_elbflex_016.csv",
-        "name": "trial 016",
-        "skip_lo": 2,
-        "skip_hi": 130,
-        "Vicon_skip_lo": 9,
-        "Vicon_skip_hi": 128,
-        "color": "g",
-    },
-    {
-        "vicon": "/workspaces/JointAngleEstimation/Matlab/python_dl102_elbflexoutput_002elb.csv",
-        "model": "/workspaces/JointAngleEstimation/CSV_Output/P_Frames-dl102_elbflex_002.csv",
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_002.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_002.csv",
         "name": "trial 002",
-        "skip_lo": 1,
-        "skip_hi": 175,
-        "Vicon_skip_lo": 8,
-        "Vicon_skip_hi": 172,
-        "color": "c",
+        "skip_lo": 2,
+        "skip_hi": 189,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 187,
+        "color": "r",
     },
     {
-        "vicon": "/workspaces/JointAngleEstimation/Matlab/python_dl102_elbflexoutput_005elb.csv",
-        "model": "/workspaces/JointAngleEstimation/CSV_Output/P_Frames-dl102_elbflex_005.csv",
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_003.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_003.csv",
+        "name": "trial 003",
+        "skip_lo": 2,
+        "skip_hi": 208,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 206,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_004.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_004.csv",
+        "name": "trial 004",
+        "skip_lo": 2,
+        "skip_hi": 174,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 172,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_005.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_005.csv",
         "name": "trial 005",
         "skip_lo": 2,
-        "skip_hi": 127,
+        "skip_hi": 194,
         "Vicon_skip_lo": 9,
-        "Vicon_skip_hi": 127,
-        "color": "m",
+        "Vicon_skip_hi": 192,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_006.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_006.csv",
+        "name": "trial 006",
+        "skip_lo": 2,
+        "skip_hi": 205,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 203,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_007.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_007.csv",
+        "name": "trial 007",
+        "skip_lo": 2,
+        "skip_hi": 185,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 183,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_008.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_008.csv",
+        "name": "trial 008",
+        "skip_lo": 2,
+        "skip_hi": 189,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 187,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_009.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_009.csv",
+        "name": "trial 009",
+        "skip_lo": 2,
+        "skip_hi": 180,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 178,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_010.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_010.csv",
+        "name": "trial 010",
+        "skip_lo": 2,
+        "skip_hi": 185,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 183,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_011.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_011.csv",
+        "name": "trial 011",
+        "skip_lo": 2,
+        "skip_hi": 202,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 200,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_012.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_012.csv",
+        "name": "trial 012",
+        "skip_lo": 2,
+        "skip_hi": 198,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 196,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_013.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_013.csv",
+        "name": "trial 013",
+        "skip_lo": 2,
+        "skip_hi": 195,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 193,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_014.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_014.csv",
+        "name": "trial 014",
+        "skip_lo": 2,
+        "skip_hi": 201,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 199,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_015.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_015.csv",
+        "name": "trial 015",
+        "skip_lo": 2,
+        "skip_hi": 181,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 179,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_016.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_016.csv",
+        "name": "trial 016",
+        "skip_lo": 2,
+        "skip_hi": 185,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 183,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_017.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_017.csv",
+        "name": "trial 017",
+        "skip_lo": 2,
+        "skip_hi": 199,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 197,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_018.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_018.csv",
+        "name": "trial 018",
+        "skip_lo": 2,
+        "skip_hi": 201,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 199,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_019.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_019.csv",
+        "name": "trial 019",
+        "skip_lo": 2,
+        "skip_hi": 194,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 192,
+        "color": "r",
+    },
+    {
+        "vicon": "/workspaces/JointAngleEstimation/Matlab/vicon_csv/processed_dl100_shoflex_020.csv",
+        "model": "/workspaces/JointAngleEstimation/csv_ouput/P_Frames-dl100_shoflex_020.csv",
+        "name": "trial 020",
+        "skip_lo": 2,
+        "skip_hi": 224,
+        "Vicon_skip_lo": 9,
+        "Vicon_skip_hi": 222,
+        "color": "r",
     },
 ]
 
@@ -95,12 +247,12 @@ for trial in trials:
     # from model output
     dfm = pd.read_csv(
         trial["model"],
-        usecols=[0, 1],
+        usecols=[0, 4],
         skiprows=lambda x: x not in range(trial["skip_lo"], trial["skip_hi"]),
         header=None,
         index_col=0,
     )
-    dfm.rename(columns={1: f"model angle ({trial['name']})"}, inplace=True)
+    dfm.rename(columns={4: f"model angle ({trial['name']})"}, inplace=True)
     dfm.index.names = ["frame number"]
     #print(dfm)
 
@@ -131,17 +283,17 @@ for trial in trials:
         dfs[f"model angle (after smoothing) ({trial['name']})"].values,
     )
     print(
-        f"RMSE        of model vs vicon (elbow flexion {trial['name']}): ",
+        f"RMSE        of model vs vicon (shoulder_flexion {trial['name']}): ",
         round(rms, 2),
     )
-    print(
-        f"MAE         of model vs vicon (elbow flexion {trial['name']}): ",
-        round(mae, 2),
-    )
-    print(
-        f"Correlation of model vs vicon (elbow flexion {trial['name']}): ",
-        round(r[0], 3),
-    )
+    # print(
+    #     f"MAE         of model vs vicon (shoulder_flexion {trial['name']}): ",
+    #     round(mae, 2),
+    # )
+    # print(
+    #     f"Correlation of model vs vicon (shoulder_flexion {trial['name']}): ",
+    #     round(r[0], 3),
+    # )
 
     if ax is None:
         ax = dfv.plot(figsize=(25, 10), linestyle="dashed", color=trial["color"])
@@ -158,7 +310,7 @@ for trial in trials:
     ax.legend()
 
 plt.savefig(
-    "/workspaces/JointAngleEstimation/Matlab/Plot_vicon_angle_vs_frames/Vicon_Model_Elbow_Flexion.png"
+    "/workspaces/JointAngleEstimation/Matlab/Plot_vicon_angle_vs_frames/Vicon_Model_shoulder_flexion.png"
 )
 
 plt.show()
