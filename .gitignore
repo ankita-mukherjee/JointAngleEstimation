@@ -1,3 +1,6 @@
-Videos/
-.devcontainer/
+Videos*/
+vicon/
+data/
+.devcontainer
+.vscode/
 __pycache__/
