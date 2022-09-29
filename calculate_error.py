@@ -1,7 +1,19 @@
 import os
 import pandas as pd
+import numpy as np
 from math import sqrt
+from matplotlib import pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from scipy.stats import pearsonr
+
+
+WINDOW_WIDTH = 10
+
+# Smoothing
+def apply_smoothing(angles, window_width):
+    cumsum_vec = np.cumsum(np.insert(angles, 0, 0))
+    ma_vec = (cumsum_vec[window_width:] - cumsum_vec[:-window_width]) / window_width
+    return ma_vec
 
 
 def get_joint_name(movement, group):
@@ -35,6 +47,13 @@ def get_joint_name(movement, group):
     return joint_name
 
 
+plt.rcParams["figure.figsize"] = [20.00, 25.50]
+plt.rcParams["figure.autolayout"] = True
+plt.rcParams.update({"font.size": 18})
+
+ax = None
+colors = "bgrcmykw"
+
 if __name__ == "__main__":
     data_path = "./data/"
     movement_groups = next(os.walk(data_path))[1]
@@ -46,13 +65,14 @@ if __name__ == "__main__":
             print(f"Evaluating error for movement in {movement_path}")
             model_output_path = movement_path + "model/"
             vicon_output_path = movement_path + "vicon/"
+            joint_name = get_joint_name(movement, group)
             # trial_name is like "dl1003a_hipabd_001"
             trial_names = [
                 filename.strip(".csv")
                 for filename in os.listdir(movement_path)
                 if ".csv" in filename
             ]
-            for trial_name in trial_names:
+            for trial_num, trial_name in enumerate(trial_names):
                 print(f"\n===== Trial {trial_name} =====")
                 # This trial_name should be present in both model and vicon sub-dirs.
                 model_csv = model_output_path + f"{trial_name}.csv"
@@ -62,7 +82,6 @@ if __name__ == "__main__":
                 # model refers to frame 1 of vicon.
                 model_df = pd.read_csv(model_csv, index_col=0)
                 model_df.index = pd.Index(range(1, len(model_df.index) + 1))
-                joint_name = get_joint_name(movement, group)
                 vicon_df = pd.read_csv(
                     vicon_csv, header=None, index_col=0, names=[joint_name]
                 )
@@ -99,3 +118,41 @@ if __name__ == "__main__":
                 print(
                     f"Coefficient of determination for trial {trial_name}, movement {movement}, group {group} is {round(r2, 2)}"
                 )
+
+                r = pearsonr(ytrue, ypred)
+                print(
+                    f"Coefficient of determination for trial {trial_name}, movement {movement}, group {group} is {r}"
+                )
+
+                # plot only for trial_num 0, 1, 2, ..., 7.
+                if trial_num >= 8:
+                    continue
+
+                y_smooth = apply_smoothing(angles=ypred, window_width=WINDOW_WIDTH)
+                y_smooth_df = pd.DataFrame(
+                    {f"model angle (after smoothing) ({trial_name})": y_smooth.tolist()}
+                )
+                y_smooth_df.index = frames_to_consider[WINDOW_WIDTH - 1 :].values
+                y_smooth_df.index.names = ["frame number"]
+
+                y_true_df = pd.DataFrame(
+                    {f"vicon angle ({trial_name})": ytrue[WINDOW_WIDTH - 1 :].tolist()}
+                )
+                y_true_df.index = frames_to_consider[WINDOW_WIDTH - 1 :].values
+                y_true_df.index.names = ["frame number"]
+
+                if ax is None:
+                    # for the first plot
+                    ax = y_true_df.plot(figsize=(34, 14), linestyle="dashed", color="r")
+                else:
+                    # for second and further plots
+                    y_true_df.plot(ax=ax, linestyle="dashed", color=colors[trial_num])
+
+                y_smooth_df.plot(ax=ax, color=colors[trial_num], linewidth=5)
+
+                ax.legend()
+
+            plt.title(f"{movement} angle")
+            plt.ylabel("Joint Angle (Degrees)")
+            plt.savefig(movement_path + joint_name)
+            plt.show()
