@@ -24,9 +24,9 @@ def get_joint_name(movement, group):
             joint_name += "hip"
         elif "knee" in movement.lower():
             joint_name += "knee"
-        elif "shoulder" in movement.lower():
+        elif "sho" in movement.lower():
             joint_name += "shoulder"
-        elif "elbow" in movement.lower():
+        elif "elb" in movement.lower():
             joint_name += "elbow"
         else:
             raise ValueError(f"unknown movement {movement}")
@@ -36,9 +36,9 @@ def get_joint_name(movement, group):
             joint_name += "hip"
         elif "knee" in movement.lower():
             joint_name += "knee"
-        elif "shoulder" in movement.lower():
+        elif "sho" in movement.lower():
             joint_name += "shoulder"
-        elif "elbow" in movement.lower():
+        elif "elb" in movement.lower():
             joint_name += "elbow"
         else:
             raise ValueError(f"unknown movement {movement}")
@@ -72,6 +72,7 @@ if __name__ == "__main__":
                 for filename in os.listdir(movement_path)
                 if ".csv" in filename
             ]
+            trial_names.sort()
             for trial_num, trial_name in enumerate(trial_names):
                 print(f"\n===== Trial {trial_name} =====")
                 # This trial_name should be present in both model and vicon sub-dirs.
@@ -118,10 +119,10 @@ if __name__ == "__main__":
                 print(
                     f"Coefficient of determination for trial {trial_name}, movement {movement}, group {group} is {round(r2, 2)}"
                 )
-
+                # calculate r score
                 r = pearsonr(ytrue, ypred)
                 print(
-                    f"Coefficient of determination for trial {trial_name}, movement {movement}, group {group} is {r}"
+                    f"Pearson Coefficient {trial_name}, movement {movement}, group {group} is {round(r[0], 3)}"
                 )
 
                 # plot only for trial_num 0, 1, 2, ..., 7.
