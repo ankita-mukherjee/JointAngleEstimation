@@ -1,6 +1,7 @@
 Videos*/
 vicon/
 data/
+backup/
 .devcontainer
 .vscode/
 __pycache__/

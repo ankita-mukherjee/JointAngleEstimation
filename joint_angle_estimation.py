@@ -42,6 +42,8 @@ KEYPOINT_DICT = {
 }
 
 # Maps bones to a matplotlib color name.
+# left corresponds to magenta.
+# right corresponds to cyan.
 KEYPOINT_EDGE_INDS_TO_COLOR = {
     (0, 1): "m",
     (0, 2): "c",
@@ -62,6 +64,20 @@ KEYPOINT_EDGE_INDS_TO_COLOR = {
     (12, 14): "c",
     (14, 16): "c",
 }
+
+
+# NOTE: This adjustment is based visual guess by looking at
+# individual processed frames.
+def _make_asi_adjustment(kpts_xy_arr):
+    # Index 11 corresponds to left hip.
+    # Adjust this to vicon ASI marker.
+    kpts_xy_arr[11][0] += 30
+    kpts_xy_arr[11][1] += -10
+
+    # Index 12 corresponds to right hip.
+    # Adjust this to vicon ASI marker.
+    kpts_xy_arr[12][0] += 30
+    kpts_xy_arr[12][1] += -10
 
 
 def _keypoints_and_edges_for_display(
@@ -94,6 +110,7 @@ def _keypoints_and_edges_for_display(
         kpts_absolute_xy = np.stack(
             [width * np.array(kpts_x), height * np.array(kpts_y)], axis=-1
         )
+        _make_asi_adjustment(kpts_xy_arr=kpts_absolute_xy)
         kpts_above_thresh_absolute = kpts_absolute_xy[
             kpts_scores > keypoint_threshold, :
         ]
@@ -127,7 +144,6 @@ def draw_prediction_on_image(
     image,
     keypoints_with_scores,
     crop_region=None,
-    close_figure=False,
     output_image_height=None,
 ):
     """Draws the keypoint predictions on image.
@@ -158,7 +174,7 @@ def draw_prediction_on_image(
     ax.set_xticklabels([])
     plt.axis("off")
 
-    im = ax.imshow(image)
+    ax.imshow(image)
     line_segments = LineCollection([], linewidths=(4), linestyle="solid")
     ax.add_collection(line_segments)
     # Turn off tick labels
@@ -299,7 +315,6 @@ def process_frames_and_generate_xls():
                     np.squeeze(display_image.numpy(), axis=0),
                     keypoint_with_scores,
                     crop_region=None,
-                    close_figure=False,
                     output_image_height=None,
                 )
 
@@ -464,7 +479,6 @@ def process_frames_and_generate_csv(data_path="./data/"):
                         np.squeeze(display_image.numpy(), axis=0),
                         keypoint_with_scores,
                         crop_region=None,
-                        close_figure=False,
                         output_image_height=None,
                     )
 
