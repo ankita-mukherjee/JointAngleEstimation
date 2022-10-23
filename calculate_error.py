@@ -1,9 +1,11 @@
+import fire
 import os
 import pandas as pd
 import numpy as np
 from math import sqrt
 from matplotlib import pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr
 
 
@@ -47,14 +49,40 @@ def get_joint_name(movement, group):
     return joint_name
 
 
-plt.rcParams["figure.figsize"] = [20.00, 25.50]
-plt.rcParams["figure.autolayout"] = True
-plt.rcParams.update({"font.size": 18})
+def get_stats(ytrue, ypred, trial_name, movement, group):
+    print(f"Statistics for trial {trial_name}, movement {movement}, group {group}")
+    # calculate rmse
+    rmse = sqrt(mean_squared_error(y_true=ytrue, y_pred=ypred))
+    print(
+        f"RMSE for trial {trial_name}, movement {movement}, group {group} is {round(rmse, 2)}"
+    )
 
-ax = None
-colors = "bgrcmykw"
+    # calculate mae
+    mae = mean_absolute_error(y_true=ytrue, y_pred=ypred)
+    print(
+        f"MAE for trial {trial_name}, movement {movement}, group {group} is {round(mae, 2)}"
+    )
 
-if __name__ == "__main__":
+    # calculate r2 score
+    r2 = r2_score(y_true=ytrue, y_pred=ypred)
+    print(
+        f"Coefficient of determination for trial {trial_name}, movement {movement}, group {group} is {round(r2, 2)}"
+    )
+
+    # calculate r score
+    r = pearsonr(ytrue, ypred)
+    print(
+        f"Pearson Coefficient {trial_name}, movement {movement}, group {group} is {round(r[0], 3)}"
+    )
+    print("\n")
+
+
+def run(with_regression=False):
+    plt.rcParams["figure.figsize"] = [20.00, 25.50]
+    plt.rcParams["figure.autolayout"] = True
+    plt.rcParams.update({"font.size": 18})
+    ax = None
+    colors = "bgrcmykw"
     data_path = "./data/"
     movement_groups = next(os.walk(data_path))[1]
     for group in movement_groups:
@@ -73,8 +101,14 @@ if __name__ == "__main__":
                 if ".csv" in filename
             ]
             trial_names.sort()
+            num_trials = len(trial_names)
+            num_train_trials = round(
+                0.80 * num_trials
+            )  # assuming 80-20 split for train and test
+            xtrain, ytrain = [], []
+            reg = None
             for trial_num, trial_name in enumerate(trial_names):
-                print(f"\n===== Trial {trial_name} =====")
+                # print(f"\n===== Trial {trial_name} =====")
                 # This trial_name should be present in both model and vicon sub-dirs.
                 model_csv = model_output_path + f"{trial_name}.csv"
                 vicon_csv = vicon_output_path + f"{trial_name}.csv"
@@ -102,28 +136,36 @@ if __name__ == "__main__":
                 ytrue = vicon_df[joint_name][frames_to_consider].values
                 ypred = joint_angles_from_model[frames_to_consider].values
 
-                # calculate rmse
-                rmse = sqrt(mean_squared_error(y_true=ytrue, y_pred=ypred))
-                print(
-                    f"RMSE for trial {trial_name}, movement {movement}, group {group} is {round(rmse, 2)}"
+                get_stats(
+                    ytrue=ytrue,
+                    ypred=ypred,
+                    trial_name=trial_name,
+                    movement=movement,
+                    group=group,
                 )
 
-                # calculate mae
-                mae = mean_absolute_error(y_true=ytrue, y_pred=ypred)
-                print(
-                    f"MAE for trial {trial_name}, movement {movement}, group {group} is {round(mae, 2)}"
-                )
-
-                # calculate r2 score
-                r2 = r2_score(y_true=ytrue, y_pred=ypred)
-                print(
-                    f"Coefficient of determination for trial {trial_name}, movement {movement}, group {group} is {round(r2, 2)}"
-                )
-                # calculate r score
-                r = pearsonr(ytrue, ypred)
-                print(
-                    f"Pearson Coefficient {trial_name}, movement {movement}, group {group} is {round(r[0], 3)}"
-                )
+                if with_regression:
+                    if trial_num < num_train_trials:
+                        ytrain = np.append(ytrain, ytrue)
+                        xtrain = np.append(xtrain, ypred)
+                    else:
+                        if reg is None:
+                            # Train a linear regression model for post-processing.
+                            reg = LinearRegression().fit(xtrain.reshape(-1, 1), ytrain)
+                            print(
+                                f"Linear Regression score for training {num_train_trials} trials from {movement} is {reg.score(xtrain.reshape(-1, 1), ytrain)}\n"
+                            )
+                        ypred_reg = reg.predict(ypred.reshape(-1, 1))
+                        print(
+                            f"After applying regression to joint angles from model for trial {trial_name}:"
+                        )
+                        get_stats(
+                            ytrue=ytrue,
+                            ypred=ypred_reg,
+                            trial_name=trial_name,
+                            movement=movement,
+                            group=group,
+                        )
 
                 # plot only for trial_num 0, 1, 2, ..., 7.
                 if trial_num >= 8:
@@ -157,3 +199,7 @@ if __name__ == "__main__":
             plt.ylabel("Joint Angle (Degrees)")
             plt.savefig(movement_path + joint_name)
             plt.show()
+
+
+if __name__ == "__main__":
+    fire.Fire(run)
