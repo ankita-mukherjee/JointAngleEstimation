@@ -14,6 +14,7 @@ def calculate_hip_angles(path_hip):
         df1 = pd.read_csv(
             trial_hip,
             skiprows=5,
+            sep=r"[\t:,]",
             header=None,
             names=[
                 "Frame",
@@ -71,6 +72,7 @@ def calculate_knee_angles(path_knee):
         df1 = pd.read_csv(
             trial_knee,
             skiprows=5,
+            sep=r"[\t:,]",
             header=None,
             names=[
                 "Frame",
@@ -129,6 +131,7 @@ def calculate_shoulder_angles(path_shoulder):
         df1 = pd.read_csv(
             trial_shoulder,
             skiprows=5,
+            sep=r"[\t:,]",
             header=None,
             names=[
                 "Frame",
@@ -188,6 +191,7 @@ def calculate_elb_angles(path_elb):
         df1 = pd.read_csv(
             trial_elbow,
             skiprows=5,
+            sep=r"[\t:,]",
             header=None,
             names=[
                 "Frame",
