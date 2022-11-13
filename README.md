@@ -16,6 +16,24 @@ pip install -r requirements.txt
 - Joint angles from vicon (`joint_angle_vicon.py`) will generate joint angles from vicon csv files in `./data/vicon/`.
 - `calculate_error.py` calculates the RMSE, MAE and R2 between the model inferred joint angles and the joint angles from the vicon dataset.
 
+Example shell commands in Linux for working with dirs and files:
+
+```
+mv data/* backup/
+rm -rf backup/dl105-Right-Lower
+cp -rf backup/dl105-Right-lower data/
+```
+
+Remove all directories except one (hipflex):
+
+```
+cd data/dl105-Right-lower/
+shopt -s extglob
+rm -rf !(hipflex)
+cd hipflex
+rm -rf !(dl105_right-lower_hipflex_001*)
+```
+
 ### Example directory structure for `./data/`
 
 ```

@@ -1,7 +1,6 @@
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from xlwt import *
-from angle_function import joint_angle
 from video_to_frame import process_video
 from excel_sort import sortColum
 
@@ -13,12 +12,6 @@ import pandas as pd
 import numpy as np
 import cv2
 import os
-
-
-# Some modules to display an animation using imageio.
-import imageio
-
-# @title Helper functions for visualization
 
 # Dictionary that maps from joint names to keypoint indices.
 KEYPOINT_DICT = {
@@ -40,6 +33,44 @@ KEYPOINT_DICT = {
     "left_ankle": 15,
     "right_ankle": 16,
 }
+
+KEYPOINT_NAMES = [
+    "nose",
+    "left_eye",
+    "right_eye",
+    "left_ear",
+    "right_ear",
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_wrist",
+    "right_wrist",
+    "left_hip",
+    "right_hip",
+    "left_knee",
+    "right_knee",
+    "left_ankle",
+    "right_ankle",
+]
+
+LEFT_KEYPOINT_NAMES = [
+    "left_shoulder",
+    "left_elbow",
+    "left_wrist",
+    "left_hip",
+    "left_knee",
+    "left_ankle",
+]
+
+RIGHT_KEYPOINT_NAMES = [
+    "right_shoulder",
+    "right_elbow",
+    "right_wrist",
+    "right_hip",
+    "right_knee",
+    "right_ankle",
+]
 
 # Maps bones to a matplotlib color name.
 # left corresponds to magenta.
@@ -66,22 +97,8 @@ KEYPOINT_EDGE_INDS_TO_COLOR = {
 }
 
 
-# NOTE: This adjustment is based visual guess by looking at
-# individual processed frames.
-def _make_asi_adjustment(kpts_xy_arr):
-    # Index 11 corresponds to left hip.
-    # Adjust this to vicon ASI marker.
-    kpts_xy_arr[11][0] += 30
-    kpts_xy_arr[11][1] += -10
-
-    # Index 12 corresponds to right hip.
-    # Adjust this to vicon ASI marker.
-    kpts_xy_arr[12][0] += 30
-    kpts_xy_arr[12][1] += -10
-
-
 def _keypoints_and_edges_for_display(
-    keypoints_with_scores, height, width, keypoint_threshold=0.11
+    show_left, keypoints_with_scores, height, width, keypoint_threshold=0.25
 ):
     """Returns high confidence keypoints and edges for visualization.
 
@@ -99,7 +116,7 @@ def _keypoints_and_edges_for_display(
         * the coordinates of all skeleton edges of all detected entities;
         * the colors in which the edges should be plotted.
     """
-    keypoints_all = []
+    keypoints_all = []  # list[pd.Series]
     keypoint_edges_all = []
     edge_colors = []
     num_instances, _, _, _ = keypoints_with_scores.shape
@@ -107,29 +124,68 @@ def _keypoints_and_edges_for_display(
         kpts_x = keypoints_with_scores[0, idx, :, 1]
         kpts_y = keypoints_with_scores[0, idx, :, 0]
         kpts_scores = keypoints_with_scores[0, idx, :, 2]
-        kpts_absolute_xy = np.stack(
-            [width * np.array(kpts_x), height * np.array(kpts_y)], axis=-1
+
+        kpts_absolute_xy = pd.DataFrame(
+            np.stack([width * np.array(kpts_x), height * np.array(kpts_y)], axis=-1),
+            index=KEYPOINT_NAMES,
         )
-        _make_asi_adjustment(kpts_xy_arr=kpts_absolute_xy)
-        kpts_above_thresh_absolute = kpts_absolute_xy[
-            kpts_scores > keypoint_threshold, :
-        ]
+        kpts_scores = pd.Series(kpts_scores, index=KEYPOINT_NAMES)
+
+        if show_left:
+            # NOTE: This adjustment is based visual guess by looking at
+            # individual processed frames.
+            kpts_absolute_xy.loc["left_hip"][0] += -30
+            kpts_absolute_xy.loc["left_hip"][1] += +10
+            kpts_absolute_xy = kpts_absolute_xy.loc[LEFT_KEYPOINT_NAMES]
+            kpts_scores = kpts_scores.loc[LEFT_KEYPOINT_NAMES]
+            kpts_indices = [KEYPOINT_DICT[kpt_name] for kpt_name in LEFT_KEYPOINT_NAMES]
+            indices_to_kpts = {
+                KEYPOINT_DICT[kpt_name]: kpt_name for kpt_name in LEFT_KEYPOINT_NAMES
+            }
+        else:
+            # NOTE: This adjustment is based visual guess by looking at
+            # individual processed frames.
+            kpts_absolute_xy.loc["right_hip"][0] += -30
+            kpts_absolute_xy.loc["right_hip"][1] += +10
+            kpts_absolute_xy = kpts_absolute_xy.loc[RIGHT_KEYPOINT_NAMES]
+            kpts_scores = kpts_scores.loc[RIGHT_KEYPOINT_NAMES]
+            kpts_indices = [
+                KEYPOINT_DICT[kpt_name] for kpt_name in RIGHT_KEYPOINT_NAMES
+            ]
+            indices_to_kpts = {
+                KEYPOINT_DICT[kpt_name]: kpt_name for kpt_name in RIGHT_KEYPOINT_NAMES
+            }
+
+        low_confidence_indices = kpts_absolute_xy[
+            kpts_scores <= keypoint_threshold
+        ].index
+        if not low_confidence_indices.empty:
+            print(
+                f"Found low confidence scores for {[(ind, kpts_scores.loc[ind]) for ind in low_confidence_indices]}."
+            )
+
+        kpts_above_thresh_absolute = kpts_absolute_xy[kpts_scores > keypoint_threshold]
         keypoints_all.append(kpts_above_thresh_absolute)
 
         for edge_pair, color in KEYPOINT_EDGE_INDS_TO_COLOR.items():
             if (
-                kpts_scores[edge_pair[0]] > keypoint_threshold
-                and kpts_scores[edge_pair[1]] > keypoint_threshold
+                edge_pair[0] in kpts_indices
+                and edge_pair[1] in kpts_indices
+                and kpts_scores.loc[indices_to_kpts[edge_pair[0]]] > keypoint_threshold
+                and kpts_scores.loc[indices_to_kpts[edge_pair[1]]] > keypoint_threshold
             ):
-                x_start = kpts_absolute_xy[edge_pair[0], 0]
-                y_start = kpts_absolute_xy[edge_pair[0], 1]
-                x_end = kpts_absolute_xy[edge_pair[1], 0]
-                y_end = kpts_absolute_xy[edge_pair[1], 1]
+                x_start = kpts_absolute_xy.loc[indices_to_kpts[edge_pair[0]]][0]
+                y_start = kpts_absolute_xy.loc[indices_to_kpts[edge_pair[0]]][1]
+
+                x_end = kpts_absolute_xy.loc[indices_to_kpts[edge_pair[1]]][0]
+                y_end = kpts_absolute_xy.loc[indices_to_kpts[edge_pair[1]]][1]
+
                 line_seg = np.array([[x_start, y_start], [x_end, y_end]])
                 keypoint_edges_all.append(line_seg)
                 edge_colors.append(color)
+
     if keypoints_all:
-        keypoints_xy = np.concatenate(keypoints_all, axis=0)
+        keypoints_xy = pd.concat(keypoints_all, axis=0)
     else:
         keypoints_xy = np.zeros((0, 17, 2))
 
@@ -137,12 +193,13 @@ def _keypoints_and_edges_for_display(
         edges_xy = np.stack(keypoint_edges_all, axis=0)
     else:
         edges_xy = np.zeros((0, 2, 2))
-    return keypoints_xy, edges_xy, edge_colors
+    return keypoints_xy, edges_xy, edge_colors, kpts_scores
 
 
 def draw_prediction_on_image(
     image,
     keypoints_with_scores,
+    show_left,
     crop_region=None,
     output_image_height=None,
 ):
@@ -180,8 +237,13 @@ def draw_prediction_on_image(
     # Turn off tick labels
     scat = ax.scatter([], [], s=60, color="#FF1493", zorder=3)
 
-    (keypoint_locs, keypoint_edges, edge_colors) = _keypoints_and_edges_for_display(
-        keypoints_with_scores, height, width
+    (
+        keypoint_locs,
+        keypoint_edges,
+        edge_colors,
+        keypoint_scores,
+    ) = _keypoints_and_edges_for_display(
+        show_left, keypoints_with_scores, height, width
     )
 
     line_segments.set_segments(keypoint_edges)
@@ -189,8 +251,9 @@ def draw_prediction_on_image(
     if keypoint_edges.shape[0]:
         line_segments.set_segments(keypoint_edges)
         line_segments.set_color(edge_colors)
+
     if keypoint_locs.shape[0]:
-        scat.set_offsets(keypoint_locs)
+        scat.set_offsets(keypoint_locs.values)
 
     if crop_region is not None:
         xmin = max(crop_region["x_min"] * width, 0.0)
@@ -213,6 +276,7 @@ def draw_prediction_on_image(
         fig.canvas.get_width_height()[::-1] + (3,)
     )
     plt.close(fig)
+
     if output_image_height is not None:
         output_image_width = int(output_image_height / height * width)
         image_from_plot = cv2.resize(
@@ -220,10 +284,11 @@ def draw_prediction_on_image(
             dsize=(output_image_width, output_image_height),
             interpolation=cv2.INTER_CUBIC,
         )
-    return image_from_plot
+
+    return image_from_plot, keypoint_locs, keypoint_scores
 
 
-# Chooe DNN models
+# Choose DNN models
 model_name = "movenet_thunder"  # @param ["movenet_lightning", "movenet_thunder", "movenet_lightning_f16.tflite", "movenet_thunder_f16.tflite", "movenet_lightning_int8.tflite", "movenet_thunder_int8.tflite"]
 if "movenet_thunder" in model_name:
     module = hub.load("https://tfhub.dev/google/movenet/singlepose/thunder/4")
@@ -243,161 +308,96 @@ def movenet(input_image):
     return keypoints_with_scores
 
 
-# This function is deprecated. Preserved for historical reasons.
-def process_frames_and_generate_xls():
-    # Load the input video frames.
-    root_path = "./Videos/Samples/"  # work_path = "./content/dltest/"
-    actions = next(os.walk(root_path))[1]  # list folder
-    print("Folders contain frames:", actions)
-    for action in actions:
-        print("Start processing", action)
-        work_path = root_path + action + "/"
-        dir_list = next(os.walk(work_path))[1]  # list folder
-        print("Folders contain frames:", dir_list)
-
-        for folder_name in dir_list:
-            print(
-                "Start Processing------------------------------------->:", folder_name
+def joint_angle(joint, keypoint_locs):
+    for side in ("left", "right"):
+        if joint in f"{side}_elbow":
+            a = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_shoulder"][1],
+                    keypoint_locs.loc[f"{side}_shoulder"][0],
+                ]
             )
-            path = work_path + folder_name + "/"
-            dir_list = os.listdir(path)
-            img_files = list(filter(lambda x: ".jpg" in x, dir_list))
-            # print(sorted(img_files))
-            joints = [
-                "left_elbow",
-                "right_elbow",
-                "left_shoulder",
-                "right_shoulder",
-                "left_hip",
-                "right_hip",
-                "left_knee",
-                "right_knee",
-            ]
-
-            # Angle to excel
-            # add_sheet is used to create sheet.
-            wb = Workbook()
-            sheet1 = wb.add_sheet("Angles")
-            row_num = 1
-            col_num = 1
-
-            col_num_initilize = 1
-            for joint in joints:
-                sheet1.write(0, col_num_initilize, joint)
-                col_num_initilize = col_num_initilize + 1
-
-            for imageFile in sorted(img_files):
-                # print(imageFile)
-
-                # row col
-                sheet1.write(row_num, 0, int(imageFile[:-4]))
-
-                image_path = path + imageFile
-                image = tf.io.read_file(image_path)
-                image = tf.image.decode_jpeg(image)
-
-                # Resize and pad the image to keep the aspect ratio and fit the expected size.
-                input_image = tf.expand_dims(image, axis=0)
-                input_image = tf.image.resize_with_pad(
-                    input_image, input_size, input_size
-                )
-
-                # Run model inference.
-                keypoint_with_scores = movenet(input_image)
-
-                # Visualize the predictions with image.
-                display_image = tf.expand_dims(image, axis=0)
-                display_image = tf.cast(
-                    tf.image.resize_with_pad(display_image, 1280, 1280), dtype=tf.int32
-                )
-
-                output_overlay = draw_prediction_on_image(
-                    np.squeeze(display_image.numpy(), axis=0),
-                    keypoint_with_scores,
-                    crop_region=None,
-                    output_image_height=None,
-                )
-
-                fig = plt.figure(figsize=(15, 15))
-                plt.imshow(output_overlay)
-                plt.margins(0, 0)
-                plt.axis("off")
-                # Output annotate
-                pix_index = 0
-                for joint in joints:
-
-                    sheet1.write(
-                        row_num,
-                        col_num,
-                        float(
-                            str(
-                                round(
-                                    joint_angle(
-                                        joint,
-                                        _keypoints_and_edges_for_display(
-                                            keypoint_with_scores, 1280, 1280
-                                        ),
-                                    ),
-                                    2,
-                                )
-                            )
-                        ),
-                    )
-                    col_num = col_num + 1  # move to the nex col
-
-                    infor = (
-                        joint
-                        + ": "
-                        + str(
-                            round(
-                                joint_angle(
-                                    joint,
-                                    _keypoints_and_edges_for_display(
-                                        keypoint_with_scores, 1280, 1280
-                                    ),
-                                ),
-                                2,
-                            )
-                        )
-                        + "\N{DEGREE SIGN}"
-                    )
-                    bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
-                    # infor = "left_shoulder: "+ str(round(jointAngle("left_shoulder"),2))
-
-                    # plt.text(30, 30 + pix_index*30, infor, ha="left", va="center", size=15, bbox=bbox_props)
-                    plt.text(
-                        30,
-                        30 + pix_index * 30,
-                        infor,
-                        ha="left",
-                        va="center",
-                        size=15,
-                        bbox=bbox_props,
-                    )
-                    pix_index = pix_index + 1
-
-                ####
-                col_num = 1  # back to the first col
-                row_num = row_num + 1  # move to the next row
-                ####
-
-                # Store the processed images
-                isFile = os.path.isdir(path + "process/")
-                if not isFile:
-                    os.mkdir(path + "process/")
-                ImageName = path + "process/P_" + imageFile
-
-                plt.savefig(ImageName, bbox_inches="tight", pad_inches=0)
-                # plt.imsave(ImageName, output_overlay)
-                plt.close("all")
-
-            print(
-                "Finished Processing---------------------------------->:", folder_name
+            b = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_elbow"][1],
+                    keypoint_locs.loc[f"{side}_elbow"][0],
+                ]
             )
-            # save and sort the excle
-            excelFile = path + "process/P_" + folder_name + ".xls"
-            wb.save(excelFile)
-            sortColum(excelFile)
+            c = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_wrist"][1],
+                    keypoint_locs.loc[f"{side}_wrist"][0],
+                ]
+            )
+            break
+        elif joint in f"{side}_shoulder":
+            a = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_elbow"][1],
+                    keypoint_locs.loc[f"{side}_elbow"][0],
+                ]
+            )
+            b = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_shoulder"][1],
+                    keypoint_locs.loc[f"{side}_shoulder"][0],
+                ]
+            )
+            c = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_hip"][1],
+                    keypoint_locs.loc[f"{side}_hip"][0],
+                ]
+            )
+            break
+        elif joint in f"{side}_hip":
+            a = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_shoulder"][1],
+                    keypoint_locs.loc[f"{side}_shoulder"][0],
+                ]
+            )
+            b = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_hip"][1],
+                    keypoint_locs.loc[f"{side}_hip"][0],
+                ]
+            )
+            c = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_knee"][1],
+                    keypoint_locs.loc[f"{side}_knee"][0],
+                ]
+            )
+            break
+        elif joint in f"{side}_knee":
+            a = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_hip"][1],
+                    keypoint_locs.loc[f"{side}_hip"][0],
+                ]
+            )
+            b = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_knee"][1],
+                    keypoint_locs.loc[f"{side}_knee"][0],
+                ]
+            )
+            c = np.array(
+                [
+                    keypoint_locs.loc[f"{side}_ankle"][1],
+                    keypoint_locs.loc[f"{side}_ankle"][0],
+                ]
+            )
+            break
+        else:
+            raise NotImplementedError(f"Unknown joint {joint}")
+
+    ba = a - b
+    bc = c - b
+    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+    angle = np.arccos(cosine_angle)
+    return np.degrees(angle)
 
 
 def process_frames_and_generate_csv(data_path="./data/"):
@@ -437,16 +437,22 @@ def process_frames_and_generate_csv(data_path="./data/"):
                     trial_path,
                 )
                 frames = list(filter(lambda x: ".jpg" in x, os.listdir(trial_path)))
-                joints = [
-                    "left_elbow",
-                    "right_elbow",
-                    "left_shoulder",
-                    "right_shoulder",
-                    "left_hip",
-                    "right_hip",
-                    "left_knee",
-                    "right_knee",
-                ]
+
+                show_left = "left" in group.lower()
+                if show_left:
+                    joints = [
+                        "left_elbow",
+                        "left_shoulder",
+                        "left_hip",
+                        "left_knee",
+                    ]
+                else:
+                    joints = [
+                        "right_elbow",
+                        "right_shoulder",
+                        "right_hip",
+                        "right_knee",
+                    ]
 
                 model_outputs_for_trial = dict()
                 for frame in frames:
@@ -475,9 +481,14 @@ def process_frames_and_generate_csv(data_path="./data/"):
                         dtype=tf.int32,
                     )
 
-                    output_overlay = draw_prediction_on_image(
-                        np.squeeze(display_image.numpy(), axis=0),
-                        keypoint_with_scores,
+                    (
+                        output_overlay,
+                        keypoint_locs,
+                        keypoint_scores,
+                    ) = draw_prediction_on_image(
+                        image=np.squeeze(display_image.numpy(), axis=0),
+                        keypoints_with_scores=keypoint_with_scores,
+                        show_left=show_left,
                         crop_region=None,
                         output_image_height=None,
                     )
@@ -489,16 +500,17 @@ def process_frames_and_generate_csv(data_path="./data/"):
                     # Output annotate
                     pix_index = 0
 
+                    # print(f"Frame {frame} has scores: {keypoint_scores.to_dict()}")
+
                     for joint in joints:
-                        angle = round(
-                            joint_angle(
-                                joint,
-                                _keypoints_and_edges_for_display(
-                                    keypoint_with_scores, 1280, 1280
-                                ),
-                            ),
-                            2,
-                        )
+                        try:
+                            angle = round(joint_angle(joint, keypoint_locs), 2)
+                        except KeyError:
+                            print(
+                                f"Skipping frame {frame} for joint {joint} because of low confidence."
+                            )
+                            continue
+
                         # map from joint_name to joint_angle
                         model_outputs_for_trial[frame_number][joint] = angle
 
