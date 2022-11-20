@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import cv2
 import os
+import math
 
 # Dictionary that maps from joint names to keypoint indices.
 KEYPOINT_DICT = {
@@ -97,6 +98,23 @@ KEYPOINT_EDGE_INDS_TO_COLOR = {
 }
 
 
+def _zero_score_for_invalid_upper_ratio(
+    show_left: bool, kpts_absolute_xy: pd.DataFrame, kpts_scores: pd.Series
+):
+    side = "left" if show_left else "right"
+    wrist = kpts_absolute_xy.loc[f"{side}_wrist"]
+    elbow = kpts_absolute_xy.loc[f"{side}_elbow"]
+    shoulder = kpts_absolute_xy.loc[f"{side}_shoulder"]
+    elbow_to_wrist = math.hypot(elbow[0] - wrist[0], elbow[1] - wrist[1])
+    shoulder_to_elbow = math.hypot(shoulder[0] - elbow[0], shoulder[1] - elbow[1])
+    ratio = shoulder_to_elbow / elbow_to_wrist
+    if not (0.8 < ratio < 1.2):
+        print(f"Found (sho-elb) : (elb-wrist) ratio {ratio} outside (0.8, 1.2).")
+        kpts_scores.loc[f"{side}_wrist"] = 0.0
+        kpts_scores.loc[f"{side}_elbow"] = 0.0
+        kpts_scores.loc[f"{side}_shoulder"] = 0.0
+
+
 def _keypoints_and_edges_for_display(
     show_left, keypoints_with_scores, height, width, keypoint_threshold=0.25
 ):
@@ -131,11 +149,17 @@ def _keypoints_and_edges_for_display(
         )
         kpts_scores = pd.Series(kpts_scores, index=KEYPOINT_NAMES)
 
+        _zero_score_for_invalid_upper_ratio(
+            show_left=show_left,
+            kpts_absolute_xy=kpts_absolute_xy,
+            kpts_scores=kpts_scores,
+        )
+
         if show_left:
             # NOTE: This adjustment is based visual guess by looking at
             # individual processed frames.
-            kpts_absolute_xy.loc["left_hip"][0] += -30
-            kpts_absolute_xy.loc["left_hip"][1] += +10
+            # kpts_absolute_xy.loc["left_hip"][0] += -30
+            # kpts_absolute_xy.loc["left_hip"][1] += +10
             kpts_absolute_xy = kpts_absolute_xy.loc[LEFT_KEYPOINT_NAMES]
             kpts_scores = kpts_scores.loc[LEFT_KEYPOINT_NAMES]
             kpts_indices = [KEYPOINT_DICT[kpt_name] for kpt_name in LEFT_KEYPOINT_NAMES]
@@ -145,8 +169,8 @@ def _keypoints_and_edges_for_display(
         else:
             # NOTE: This adjustment is based visual guess by looking at
             # individual processed frames.
-            kpts_absolute_xy.loc["right_hip"][0] += -30
-            kpts_absolute_xy.loc["right_hip"][1] += +10
+            # kpts_absolute_xy.loc["right_hip"][0] += -30
+            # kpts_absolute_xy.loc["right_hip"][1] += +10
             kpts_absolute_xy = kpts_absolute_xy.loc[RIGHT_KEYPOINT_NAMES]
             kpts_scores = kpts_scores.loc[RIGHT_KEYPOINT_NAMES]
             kpts_indices = [

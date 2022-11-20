@@ -4,4 +4,5 @@ data/
 backup/
 .devcontainer
 .vscode/
+.DS_Store
 __pycache__/

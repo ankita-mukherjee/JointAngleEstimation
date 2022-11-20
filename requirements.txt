@@ -1,6 +1,8 @@
-# RUN apt-get update
-# RUN apt-get install ffmpeg libsm6 libxext6  -y
-# RUN apt-get install python-matplotlib -y
+# RUN apt update
+# The following is to fix: `ImportError: libGL.so.1: cannot open shared object file: No such file or directory`
+# RUN apt install git ffmpeg libsm6 libxext6  -y
+# RUN apt install python-matplotlib -y
+# RUN python3 -m pip install --upgrade pip
 opencv-python
 matplotlib
 xlwt
@@ -8,3 +10,6 @@ xlrd
 ipython
 tensorflow-hub
 imageio
+pandas
+isort
+black
