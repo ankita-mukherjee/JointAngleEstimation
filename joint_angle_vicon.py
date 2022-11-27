@@ -11,6 +11,7 @@ import os
 def calculate_hip_angles(path_hip):
     all_files_hip = glob.glob(path_hip + "*.csv")
     for trial_hip in all_files_hip:
+        print(f"Processing {trial_hip}")
         df1 = pd.read_csv(
             trial_hip,
             skiprows=5,
@@ -69,6 +70,7 @@ def calculate_knee_angles(path_knee):
     all_files_knee = glob.glob(path_knee + "*.csv")
 
     for trial_knee in all_files_knee:
+        print(f"Processing {trial_knee}")
         df1 = pd.read_csv(
             trial_knee,
             skiprows=5,
@@ -121,13 +123,14 @@ def calculate_knee_angles(path_knee):
         os.makedirs(processed_folder_path, exist_ok=True)
         csv_file_path = processed_folder_path + os.path.split(trial_knee)[1]
         theta_knee_flex_angle.to_csv(csv_file_path, header=False)
-        print(f"Generated knee flexion joint angles from vicon data to {csv_file_path}")
+        print(f"Generated knee joint angles from vicon data to {csv_file_path}")
 
 
 # Calculate shoulder abduction, shoulder extension and shoulder flexion joint angles.
 def calculate_shoulder_angles(path_shoulder):
     all_files_shoulder = glob.glob(path_shoulder + "*.csv")
     for trial_shoulder in all_files_shoulder:
+        print(f"Processing {trial_shoulder}")
         df1 = pd.read_csv(
             trial_shoulder,
             skiprows=5,
@@ -180,7 +183,7 @@ def calculate_shoulder_angles(path_shoulder):
         os.makedirs(processed_folder_path, exist_ok=True)
         csv_file_path = processed_folder_path + os.path.split(trial_shoulder)[1]
         theta_shoulder_angle.to_csv(csv_file_path, header=False)
-        print(f"Generated hip joint angles from vicon data to {csv_file_path}")
+        print(f"Generated shoulder joint angles from vicon data to {csv_file_path}")
 
 
 # Calculate elbow flexion joint angle.
@@ -188,6 +191,7 @@ def calculate_elb_angles(path_elb):
     all_files_elb = glob.glob(path_elb + "*.csv")
 
     for trial_elbow in all_files_elb:
+        print(f"Processing {trial_elbow}")
         df1 = pd.read_csv(
             trial_elbow,
             skiprows=5,
@@ -240,7 +244,7 @@ def calculate_elb_angles(path_elb):
         os.makedirs(processed_folder_path, exist_ok=True)
         csv_file_path = processed_folder_path + os.path.split(trial_elbow)[1]
         theta_elbow_angle.to_csv(csv_file_path, header=False)
-        print(f"Generated hip joint angles from vicon data to {csv_file_path}")
+        print(f"Generated elbow joint angles from vicon data to {csv_file_path}")
 
 
 if __name__ == "__main__":
