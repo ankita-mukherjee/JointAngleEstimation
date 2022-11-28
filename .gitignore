@@ -1,6 +1,7 @@
 Videos*/
 vicon/
 data/
+gen/
 backup/
 .devcontainer
 .vscode/
