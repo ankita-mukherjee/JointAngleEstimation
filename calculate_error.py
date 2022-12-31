@@ -4,6 +4,7 @@ python3 calculate_error.py --with-regression
 """
 import fire
 import os
+import random
 import shutil
 import pandas as pd
 import numpy as np
@@ -68,23 +69,21 @@ def get_joint_name(movement, group):
 
 def get_stats(ytrue, ypred, trial_name, movement):
     # print(f"Statistics for trial {trial_name}, movement {movement}")
-    # calculate rmse
-    rmse = sqrt(mean_squared_error(y_true=ytrue, y_pred=ypred))
-    print(f"RMSE for trial {trial_name}, movement {movement} is {round(rmse, 2)}")
+    # # calculate rmse
+    # rmse = sqrt(mean_squared_error(y_true=ytrue, y_pred=ypred))
+    # print(f"RMSE for trial {trial_name}, movement {movement} is {round(rmse, 2)}")
 
-    #  # calculate mae
+    # # calculate mae
     # mae = mean_absolute_error(y_true=ytrue, y_pred=ypred)
-    # print(
-    #     f"MAE for trial {trial_name}, movement {movement} is {round(mae, 2)}"
-    # )
+    # print(f"MAE for trial {trial_name}, movement {movement} is {round(mae, 2)}")
 
-    # # calculate r2 score
-    # corr_matrix = np.corrcoef(y_true=ytrue, y_pred=ypred)
-    # corr = corr_matrix[0, 1]
-    # R_sq = corr**2
-    # print(
-    #     f"Coefficient of determination for trial {trial_name}, movement {movement} is {round(R_sq, 2)}"
-    # )
+    # calculate r2 score
+    corr_matrix = np.corrcoef(ytrue, ypred)
+    corr = corr_matrix[0, 1]
+    R_sq = corr**2
+    print(
+        f"Coefficient of determination {trial_name}, movement {movement} is {round(R_sq, 2)}"
+    )
 
     # # calculate r score
     # r = pearsonr(ytrue, ypred)
@@ -159,11 +158,18 @@ def run(with_regression=False):
         ]
         trial_names.sort()
         num_trials = len(trial_names)
-        num_train_trials = round(
-            0.80 * num_trials
-        )  # assuming 80-20 split for train and test
-        xtrain, ytrain = [], []
-        reg = None
+        if with_regression:
+            random.shuffle(trial_names)
+            num_train_trials = round(
+                0.80 * num_trials
+            )  # assuming 80-20 split for train and test
+            train_trials = trial_names[:num_train_trials]
+            test_trials = trial_names[num_train_trials:]
+            train_trials.sort()
+            test_trials.sort()
+            xtrain, ytrain = [], []
+            reg = None
+            trial_names = train_trials + test_trials
         for trial_num, trial_name in enumerate(trial_names):
             # print(f"\n===== Trial {trial_name} =====")
             # This trial_name should be present in both model and vicon sub-dirs.
@@ -203,15 +209,17 @@ def run(with_regression=False):
             ypred = joint_angles_from_model[frames_to_consider].values
 
             if with_regression:
-                if trial_num < num_train_trials:
+                if trial_name in train_trials:
                     ytrain = np.append(ytrain, ytrue)
                     xtrain = np.append(xtrain, ypred)
                 else:
+                    assert trial_name in test_trials
+                    assert trial_num >= num_train_trials
                     if reg is None:
                         # Train a linear regression model for post-processing.
                         reg = LinearRegression().fit(xtrain.reshape(-1, 1), ytrain)
                         print(
-                            f"Linear Regression score for training {num_train_trials} trials from {movement} is {reg.score(xtrain.reshape(-1, 1), ytrain)}\n"
+                            f"\nLinear Regression score after training on {num_train_trials} trials from {movement} is {reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
                         )
                     ypred_reg = reg.predict(ypred.reshape(-1, 1))
                     get_stats(
@@ -255,7 +263,7 @@ def run(with_regression=False):
 
         plt.title(f"{movement} angle")
         plt.ylabel("Joint Angle (Degrees)")
-        plt.savefig(movement_path + joint_name)
+        # plt.savefig(movement_path + joint_name)
         plt.show()
 
 
