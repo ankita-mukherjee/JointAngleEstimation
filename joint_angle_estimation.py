@@ -2,7 +2,6 @@ from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from xlwt import *
 from video_to_frame import process_video
-from excel_sort import sortColum
 
 import tensorflow as tf
 import tensorflow_hub as hub
@@ -245,7 +244,7 @@ def draw_prediction_on_image(
       A numpy array with shape [out_height, out_width, channel] representing the
       image overlaid with keypoint predictions.
     """
-    height, width, channel = image.shape
+    height, width, _ = image.shape
     aspect_ratio = float(width) / height
     fig, ax = plt.subplots(figsize=(12 * aspect_ratio, 12))
     # To remove the huge white borders
@@ -333,6 +332,8 @@ def movenet(input_image):
 
 
 def joint_angle(joint, keypoint_locs):
+    joint_found = False
+
     for side in ("left", "right"):
         if joint in f"{side}_elbow":
             a = np.array(
@@ -353,6 +354,7 @@ def joint_angle(joint, keypoint_locs):
                     keypoint_locs.loc[f"{side}_wrist"][0],
                 ]
             )
+            joint_found = True
             break
         elif joint in f"{side}_shoulder":
             a = np.array(
@@ -373,6 +375,7 @@ def joint_angle(joint, keypoint_locs):
                     keypoint_locs.loc[f"{side}_hip"][0],
                 ]
             )
+            joint_found = True
             break
         elif joint in f"{side}_hip":
             a = np.array(
@@ -393,6 +396,7 @@ def joint_angle(joint, keypoint_locs):
                     keypoint_locs.loc[f"{side}_knee"][0],
                 ]
             )
+            joint_found = True
             break
         elif joint in f"{side}_knee":
             a = np.array(
@@ -413,9 +417,11 @@ def joint_angle(joint, keypoint_locs):
                     keypoint_locs.loc[f"{side}_ankle"][0],
                 ]
             )
+            joint_found = True
             break
-        else:
-            raise NotImplementedError(f"Unknown joint {joint}")
+
+    if not joint_found:
+        raise NotImplementedError(f"Unknown joint {joint}!")
 
     ba = a - b
     bc = c - b
@@ -505,11 +511,7 @@ def process_frames_and_generate_csv(data_path="./data/"):
                         dtype=tf.int32,
                     )
 
-                    (
-                        output_overlay,
-                        keypoint_locs,
-                        keypoint_scores,
-                    ) = draw_prediction_on_image(
+                    output_overlay, keypoint_locs, _ = draw_prediction_on_image(
                         image=np.squeeze(display_image.numpy(), axis=0),
                         keypoints_with_scores=keypoint_with_scores,
                         show_left=show_left,
