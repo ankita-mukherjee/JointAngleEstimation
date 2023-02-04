@@ -67,23 +67,17 @@ def get_joint_name(movement, group):
     return joint_name
 
 
-def get_stats(ytrue, ypred, trial_name, movement):
-    # print(f"Statistics for trial {trial_name}, movement {movement}")
-    # # calculate rmse
-    # rmse = sqrt(mean_squared_error(y_true=ytrue, y_pred=ypred))
-    # print(f"RMSE for trial {trial_name}, movement {movement} is {round(rmse, 2)}")
+def get_stats(ytrue, ypred):
+    # calculate rmse
+    rmse = sqrt(mean_squared_error(y_true=ytrue, y_pred=ypred))
 
-    # # calculate mae
-    # mae = mean_absolute_error(y_true=ytrue, y_pred=ypred)
-    # print(f"MAE for trial {trial_name}, movement {movement} is {round(mae, 2)}")
+    # calculate mae
+    mae = mean_absolute_error(y_true=ytrue, y_pred=ypred)
 
     # calculate r2 score
     corr_matrix = np.corrcoef(ytrue, ypred)
     corr = corr_matrix[0, 1]
-    R_sq = corr**2
-    print(
-        f"Coefficient of determination {trial_name}, movement {movement} is {round(R_sq, 2)}"
-    )
+    r2 = corr**2
 
     # # calculate r score
     # r = pearsonr(ytrue, ypred)
@@ -91,6 +85,8 @@ def get_stats(ytrue, ypred, trial_name, movement):
     #     f"Pearson Coefficient {trial_name}, movement {movement} is {round(r[0], 3)}"
     # )
     # # print("\n")
+
+    return {"RMSE": round(rmse, 2), "MAE": round(mae, 2), "R2": round(r2, 2)}
 
 
 def collect_model_vicon_csvs():
@@ -136,6 +132,55 @@ def collect_model_vicon_csvs():
                 shutil.copy(vicon_csv_file, f"{GEN_PATH}/{movement}/vicon/{csv_file}")
 
 
+def get_filtered_trials(movement):
+    assert movement in MOVEMENTS
+    movement_path = f"{GEN_PATH}/{movement}/"
+    model_output_path = movement_path + "model/"
+    vicon_output_path = movement_path + "vicon/"
+    assert len(os.listdir(model_output_path)) == len(os.listdir(vicon_output_path))
+    trial_names = [
+        filename.strip(".csv")
+        for filename in os.listdir(model_output_path)
+        if ".csv" in filename
+    ]
+    trial_names.sort()
+    filtered_trial_names = []
+    for trial_name in trial_names:
+        # This trial_name should be present in both model and vicon sub-dirs.
+        model_csv = model_output_path + f"{trial_name}.csv"
+        vicon_csv = vicon_output_path + f"{trial_name}.csv"
+        # Frame number for vicon csv files start from 1, and frame number for
+        # model csv files start from 0. We need to make adjustments. Frame 0 of
+        # model refers to frame 1 of vicon.
+        model_df = pd.read_csv(model_csv, index_col=0)
+        model_df.index = pd.Index(range(1, len(model_df.index) + 1))
+
+        # If frame number x has NaN for model, then we should drop frame number
+        # x from both model and vicon dataframes.
+        joint_name = [col for col in model_df.columns if movement[:3] in col][0]
+        joint_angles_from_model = model_df[joint_name]
+        joint_angles_from_model.dropna(
+            inplace=True
+        )  # drops rows (frames) with NaN in joint_name column from model dataframe
+        # pick index (frames or rows) without NaN in model AND present in vicon csv
+        vicon_df = pd.read_csv(vicon_csv, header=None, index_col=0, names=[joint_name])
+        vicon_df.dropna(inplace=True)
+
+        if vicon_df.empty:
+            print(f"Trial {trial_name} has empty vicon data. Please check. Skipping.")
+            continue
+
+        frames_to_consider = joint_angles_from_model.index.intersection(vicon_df.index)
+        ytrue = vicon_df[joint_name][frames_to_consider].values
+        ypred = joint_angles_from_model[frames_to_consider].values
+        metrics = get_stats(ytrue=ytrue, ypred=ypred)
+        if not (metrics["RMSE"] >= 25 or metrics["MAE"] >= 20 or metrics["R2"] <= 0.8):
+            filtered_trial_names.append(trial_name)
+        else:
+            print(f"Filtering out trial {trial_name}, metrics: {metrics}.")
+    return filtered_trial_names
+
+
 def run(with_regression=False):
     plt.rcParams["figure.figsize"] = [20.00, 25.50]
     plt.rcParams["figure.autolayout"] = True
@@ -150,27 +195,21 @@ def run(with_regression=False):
         print(f"Evaluating error for {movement}")
         model_output_path = movement_path + "model/"
         vicon_output_path = movement_path + "vicon/"
-        assert len(os.listdir(model_output_path)) == len(os.listdir(vicon_output_path))
-        trial_names = [
-            filename.strip(".csv")
-            for filename in os.listdir(model_output_path)
-            if ".csv" in filename
-        ]
-        trial_names.sort()
-        num_trials = len(trial_names)
+        filtered_trial_names = get_filtered_trials(movement=movement)
+        num_trials = len(filtered_trial_names)
         if with_regression:
-            random.shuffle(trial_names)
+            random.shuffle(filtered_trial_names)
             num_train_trials = round(
                 0.80 * num_trials
             )  # assuming 80-20 split for train and test
-            train_trials = trial_names[:num_train_trials]
-            test_trials = trial_names[num_train_trials:]
+            train_trials = filtered_trial_names[:num_train_trials]
+            test_trials = filtered_trial_names[num_train_trials:]
             train_trials.sort()
             test_trials.sort()
             xtrain, ytrain = [], []
             reg = None
-            trial_names = train_trials + test_trials
-        for trial_num, trial_name in enumerate(trial_names):
+            filtered_trial_names = train_trials + test_trials
+        for trial_num, trial_name in enumerate(filtered_trial_names):
             # print(f"\n===== Trial {trial_name} =====")
             # This trial_name should be present in both model and vicon sub-dirs.
             model_csv = model_output_path + f"{trial_name}.csv"
@@ -208,6 +247,7 @@ def run(with_regression=False):
             ytrue = vicon_df[joint_name][frames_to_consider].values
             ypred = joint_angles_from_model[frames_to_consider].values
 
+            metrics = None
             if with_regression:
                 if trial_name in train_trials:
                     ytrain = np.append(ytrain, ytrue)
@@ -222,15 +262,15 @@ def run(with_regression=False):
                             f"\nLinear Regression score after training on {num_train_trials} trials from {movement} is {reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
                         )
                     ypred_reg = reg.predict(ypred.reshape(-1, 1))
-                    get_stats(
-                        ytrue=ytrue,
-                        ypred=ypred_reg,
-                        trial_name=trial_name,
-                        movement=movement,
-                    )
+                    metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
             else:
-                get_stats(
-                    ytrue=ytrue, ypred=ypred, trial_name=trial_name, movement=movement
+                metrics = get_stats(ytrue=ytrue, ypred=ypred)
+
+            if metrics is not None:
+                print(
+                    f"RMSE for trial {trial_name}, movement {movement} is {metrics['RMSE']}.\n"
+                    f"MAE for trial {trial_name}, movement {movement} is {metrics['MAE']}.\n"
+                    f"R2 of trial {trial_name}, movement {movement} is {metrics['R2']}"
                 )
 
             # plot only for trial_num 0, 1, 2, ..., 7.
