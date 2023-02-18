@@ -12,12 +12,15 @@ from math import sqrt
 from matplotlib import pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
 from scipy.stats import pearsonr
+
+from definitions import ROOT_DIR
 
 
 WINDOW_WIDTH = 10
-GEN_PATH = "./gen"
-DATA_PATH = "./data"
+GEN_PATH = f"{ROOT_DIR}/gen"
+DATA_PATH = f"{ROOT_DIR}/data"
 MOVEMENTS = (
     "elbflex",
     "shoabd",
@@ -109,14 +112,14 @@ def collect_model_vicon_csvs():
             participant_movement_path = f"{movement_group_path}/{participant_movement}"
             movement = [m for m in MOVEMENTS if m in participant_movement][0]
             if not os.path.exists(f"{participant_movement_path}/model/"):
-                print(
-                    f"Skipping {participant_movement} as model directory does not exist."
-                )
+                # print(
+                #     f"Skipping {participant_movement} as model directory does not exist."
+                # )
                 continue
             if not os.path.exists(f"{participant_movement_path}/vicon/"):
-                print(
-                    f"Skipping {participant_movement} as vicon directory does not exist."
-                )
+                # print(
+                #     f"Skipping {participant_movement} as vicon directory does not exist."
+                # )
                 continue
             model_csv_files = os.listdir(f"{participant_movement_path}/model/")
             vicon_csv_files = os.listdir(f"{participant_movement_path}/vicon/")
@@ -167,17 +170,16 @@ def get_filtered_trials(movement):
         vicon_df.dropna(inplace=True)
 
         if vicon_df.empty:
-            print(f"Trial {trial_name} has empty vicon data. Please check. Skipping.")
+            # print(f"Trial {trial_name} has empty vicon data. Please check. Skipping.")
             continue
 
         frames_to_consider = joint_angles_from_model.index.intersection(vicon_df.index)
         ytrue = vicon_df[joint_name][frames_to_consider].values
         ypred = joint_angles_from_model[frames_to_consider].values
         metrics = get_stats(ytrue=ytrue, ypred=ypred)
-        if not (metrics["RMSE"] >= 25 or metrics["MAE"] >= 20 or metrics["R2"] <= 0.8):
+        # RMSE >= 25 or MAE >= 20 or R2 >= 0.20
+        if not (metrics["RMSE"] >= 25 or metrics["MAE"] >= 20 or metrics["R2"] <= 0.20):
             filtered_trial_names.append(trial_name)
-        else:
-            print(f"Filtering out trial {trial_name}, metrics: {metrics}.")
     return filtered_trial_names
 
 
