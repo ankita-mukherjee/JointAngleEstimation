@@ -467,7 +467,9 @@ def process_frames_and_generate_csv(data_path="./data/"):
                     trial_path,
                 )
                 frames = list(filter(lambda x: ".jpg" in x, os.listdir(trial_path)))
-
+                assert (
+                    "left" in group.lower() or "right" in group.lower()
+                ), f"Group {group} does not contain left or right."
                 show_left = "left" in group.lower()
                 if show_left:
                     joints = [

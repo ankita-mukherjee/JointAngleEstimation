@@ -1,4 +1,4 @@
-import pandas as pd   
+import pandas as pd
 import numpy as np
 from math import sqrt
 from scipy.stats import pearsonr
@@ -140,7 +140,7 @@ print("-------- testing linear regression model --------")
 print(
     f"number of angles used for testing: movenet = {X_test.shape}, vicon = {Y_test.shape}"
 )
-#predictions = reg.predict(X_test)
+# predictions = reg.predict(X_test)
 predictions = reg.predict(trial_movenet_angles)
 print(predictions)
 print(trial_vicon_angles)
@@ -152,14 +152,13 @@ print(
 )
 print(
     f"\nBetween movenet+regression & vicon,\n"
-    #f"  RMSE     = {rmse(model_angles=predictions.flatten(), vicon_angles=Y_test)}\n"
+    # f"  RMSE     = {rmse(model_angles=predictions.flatten(), vicon_angles=Y_test)}\n"
     f"  RMSE     = {rmse(model_angles=predictions, vicon_angles=trial_vicon_angles)}\n"
-#     f"  MAE      = {mean_absolute_error(predictions.flatten(), Y_test)}\n"
-#     f"  PearsonR = {pearsonr(predictions.flatten(), Y_test)}"
- )
-#print("-------- testing linear regression model done --------")
+    #     f"  MAE      = {mean_absolute_error(predictions.flatten(), Y_test)}\n"
+    #     f"  PearsonR = {pearsonr(predictions.flatten(), Y_test)}"
+)
+# print("-------- testing linear regression model done --------")
 
 
-
-#score = r2_score(data["Actual Value"], data["Preds"])
-#print("The accuracy of our model is {}%".format(round(score, 2) *100))    Pearson (r) ≠ r2
+# score = r2_score(data["Actual Value"], data["Preds"])
+# print("The accuracy of our model is {}%".format(round(score, 2) *100))    Pearson (r) ≠ r2
