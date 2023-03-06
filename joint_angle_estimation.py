@@ -1,3 +1,5 @@
+# python3 joint_angle_estimation.py --skip-process-video=True // To skip processing video.
+# python3 joint_angle_estimation.py                           // For normal usage.
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from xlwt import *
@@ -12,6 +14,8 @@ import numpy as np
 import cv2
 import os
 import math
+
+import fire
 
 # Dictionary that maps from joint names to keypoint indices.
 KEYPOINT_DICT = {
@@ -194,8 +198,9 @@ def _keypoints_and_edges_for_display(
             if (
                 edge_pair[0] in kpts_indices
                 and edge_pair[1] in kpts_indices
-                and kpts_scores.loc[indices_to_kpts[edge_pair[0]]] > keypoint_threshold
-                and kpts_scores.loc[indices_to_kpts[edge_pair[1]]] > keypoint_threshold
+                # Uncomment the following if we do not want to show the edges with low-confidence keypoints on the processed frames.
+                # and kpts_scores.loc[indices_to_kpts[edge_pair[0]]] > keypoint_threshold
+                # and kpts_scores.loc[indices_to_kpts[edge_pair[1]]] > keypoint_threshold
             ):
                 x_start = kpts_absolute_xy.loc[indices_to_kpts[edge_pair[0]]][0]
                 y_start = kpts_absolute_xy.loc[indices_to_kpts[edge_pair[0]]][1]
@@ -430,7 +435,7 @@ def joint_angle(joint, keypoint_locs):
     return np.degrees(angle)
 
 
-def process_frames_and_generate_csv(data_path="./data/"):
+def process_frames_and_generate_csv(data_path="./data/", skip_process_video=False):
     # `movement_group` is one of ["Left-Lower", "Left-Upper", "Right-Lower", "Right-Upper"]
     # `movement` is one of ["hipabd", "hipext", "hipflex", "kneeflex", "shoabd", "shoext", "shoflex", "elbowflex"]
     #  - "Left-Lower" can have only ["hipabd", "hipext", "hipflex", "kneeflex"]
@@ -438,13 +443,24 @@ def process_frames_and_generate_csv(data_path="./data/"):
     #  - "Left-Upper" can have only ["shoabd", "shoext", "shoflex", "elbowflex"]
     #  - "Right-Upper" can have only ["shoabd", "shoext", "shoflex", "elbowflex"]
     movement_groups = next(os.walk(data_path))[1]
+
+    #
+    # movement_groups = ["left_upper"]
+    #
+
     for group in movement_groups:
         # generate frames for all videos in each movement in the group
         # Example of movement_group_path is "./data/dl103-Right-Lower-obj1/"
         movement_group_path = data_path + group + "/"
-        process_video(movement_group_path=movement_group_path)
+        if not skip_process_video:
+            process_video(movement_group_path=movement_group_path)
         # this can be ["hipabd", "hipext", "hipflex", "kneeflex", "shoabd", "shoext", "shoflex", "elbowflex"]
         movements = next(os.walk(movement_group_path))[1]
+
+        #
+        # movements = ["dl212_leftupper_shoext"]
+        #
+
         for movement in movements:
             # Example: movement_path could be "./data/dl103-Right-Lower-obj1/hipabd/"
             movement_path = movement_group_path + movement + "/"
@@ -457,6 +473,10 @@ def process_frames_and_generate_csv(data_path="./data/"):
                 filter(lambda x: "frames-" in x, os.listdir(movement_path))
             )
             print("Found frame dirs:", trial_dirs)
+
+            #
+            # trial_dirs = ["frames-dl212_left_upper_shoext_001.2104948.20230204165442"]
+            #
 
             # Inside a trial_dir, we will have image files like 0.jpg, 1.jpg, ... & so on.
             for trial_dir in trial_dirs:
@@ -485,6 +505,11 @@ def process_frames_and_generate_csv(data_path="./data/"):
                     ]
 
                 model_outputs_for_trial = dict()
+
+                #
+                # frames = ["65.jpg"]
+                #
+
                 for frame in frames:
                     # Example: frame = "150.jpg"
                     frame_number = int(frame[:-4])
@@ -585,4 +610,4 @@ def process_frames_and_generate_csv(data_path="./data/"):
 
 
 if __name__ == "__main__":
-    process_frames_and_generate_csv()
+    fire.Fire(process_frames_and_generate_csv)

@@ -160,7 +160,11 @@ def get_filtered_trials(movement):
 
         # If frame number x has NaN for model, then we should drop frame number
         # x from both model and vicon dataframes.
-        joint_name = [col for col in model_df.columns if movement[:3] in col][0]
+        joint_names = [col for col in model_df.columns if movement[:3] in col]
+        if not joint_names:
+            print(f"Skipping trial {trial_name} due to no {movement[:3]} columns.")
+            continue
+        joint_name = joint_names[0]
         joint_angles_from_model = model_df[joint_name]
         joint_angles_from_model.dropna(
             inplace=True
