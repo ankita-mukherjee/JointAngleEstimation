@@ -1,6 +1,11 @@
 """
 python3 calculate_error.py
+
+The following --with-regression flag will apply regression.
 python3 calculate_error.py --with-regression
+
+The following --apply-trimming flag will apply vicon trimming.
+python3 calculate_error.py --apply-trimming
 """
 import fire
 import os
@@ -135,6 +140,35 @@ def collect_model_vicon_csvs():
                 shutil.copy(vicon_csv_file, f"{GEN_PATH}/{movement}/vicon/{csv_file}")
 
 
+def apply_vicon_trimming(threshold=0.30):
+    movements = next(os.walk(GEN_PATH))[1]
+    for movement in movements:
+        assert movement in MOVEMENTS
+        movement_path = f"{GEN_PATH}/{movement}/"
+        vicon_output_path = movement_path + "vicon/"
+        trial_names = [
+            filename.strip(".csv")
+            for filename in os.listdir(vicon_output_path)
+            if ".csv" in filename
+        ]
+        trial_names.sort()
+        for trial_name in trial_names:
+            vicon_csv = vicon_output_path + f"{trial_name}.csv"
+            vicon_df = pd.read_csv(vicon_csv, header=None, index_col=0, names=["angle"])
+            lo = vicon_df.angle.min()
+            hi = vicon_df.angle.max()
+            if movement in ("shoabd", "shoflex", "shoext"):
+                vicon_df = vicon_df[vicon_df.angle >= (lo + threshold * (hi - lo))]
+            elif movement in ("elbflex"):
+                vicon_df = vicon_df[
+                    vicon_df.angle <= (lo + (1 - threshold) * (hi - lo))
+                ]
+            else:
+                # TODO: Handle lower limbs.
+                ...
+            vicon_df.to_csv(vicon_csv, header=False)
+
+
 def get_filtered_trials(movement):
     assert movement in MOVEMENTS
     movement_path = f"{GEN_PATH}/{movement}/"
@@ -187,13 +221,15 @@ def get_filtered_trials(movement):
     return filtered_trial_names
 
 
-def run(with_regression=False):
+def run(with_regression=False, apply_trimming=False):
     plt.rcParams["figure.figsize"] = [20.00, 25.50]
     plt.rcParams["figure.autolayout"] = True
     plt.rcParams.update({"font.size": 18})
     ax = None
     colors = "bgrcmykw"
     collect_model_vicon_csvs()
+    if apply_trimming:
+        apply_vicon_trimming(threshold=0.30)
     movements = next(os.walk(GEN_PATH))[1]
     for movement in movements:
         assert movement in MOVEMENTS
@@ -215,6 +251,7 @@ def run(with_regression=False):
             xtrain, ytrain = [], []
             reg = None
             filtered_trial_names = train_trials + test_trials
+        summary = {"AvgRMSE": 0, "AvgMAE": 0}
         for trial_num, trial_name in enumerate(filtered_trial_names):
             # print(f"\n===== Trial {trial_name} =====")
             # This trial_name should be present in both model and vicon sub-dirs.
@@ -273,11 +310,8 @@ def run(with_regression=False):
                 metrics = get_stats(ytrue=ytrue, ypred=ypred)
 
             if metrics is not None:
-                print(
-                    f"RMSE for trial {trial_name}, movement {movement} is {metrics['RMSE']}.\n"
-                    f"MAE for trial {trial_name}, movement {movement} is {metrics['MAE']}.\n"
-                    f"R2 of trial {trial_name}, movement {movement} is {metrics['R2']}"
-                )
+                summary["AvgRMSE"] += metrics["RMSE"]
+                summary["AvgMAE"] += metrics["MAE"]
 
             # plot only for trial_num 0, 1, 2, ..., 7.
             if trial_num >= 8:
@@ -306,6 +340,11 @@ def run(with_regression=False):
             y_smooth_df.plot(ax=ax, color=colors[trial_num], linewidth=5)
 
             ax.legend()
+
+        if test_trials:
+            summary["AvgRMSE"] = round(summary["AvgRMSE"] / len(test_trials), 2)
+            summary["AvgMAE"] = round(summary["AvgMAE"] / len(test_trials), 2)
+            print(f"Summary metrics for {movement}: {summary}")
 
         plt.title(f"{movement} angle")
         plt.ylabel("Joint Angle (Degrees)")
