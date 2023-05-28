@@ -37,6 +37,7 @@ MOVEMENTS = (
     "kneeflex",
 )
 
+
 # Smoothing
 def apply_smoothing(angles, window_width):
     cumsum_vec = np.cumsum(np.insert(angles, 0, 0))
@@ -142,21 +143,31 @@ def collect_model_vicon_csvs():
 
 def apply_vicon_trimming(threshold=0.30):
     movements = next(os.walk(GEN_PATH))[1]
+
     for movement in movements:
         assert movement in MOVEMENTS
         movement_path = f"{GEN_PATH}/{movement}/"
+        model_output_path = movement_path + "model/"
         vicon_output_path = movement_path + "vicon/"
+        assert len(os.listdir(model_output_path)) == len(os.listdir(vicon_output_path))
         trial_names = [
             filename.strip(".csv")
-            for filename in os.listdir(vicon_output_path)
+            for filename in os.listdir(model_output_path)
             if ".csv" in filename
         ]
         trial_names.sort()
         for trial_name in trial_names:
             vicon_csv = vicon_output_path + f"{trial_name}.csv"
             vicon_df = pd.read_csv(vicon_csv, header=None, index_col=0, names=["angle"])
-            lo = vicon_df.angle.min()
-            hi = vicon_df.angle.max()
+            model_csv = model_output_path + f"{trial_name}.csv"
+            model_df = pd.read_csv(model_csv, index_col=0)
+            model_df.reset_index(inplace=True, drop=True)
+
+            if vicon_df.shape[0] / model_df.shape[0] >= 2.0:
+                vicon_df = vicon_df.iloc[::2]
+                vicon_df.reset_index(inplace=True, drop=True)
+                lo = vicon_df.angle.min()
+                hi = vicon_df.angle.max()
             if movement in ("shoabd", "shoflex", "shoext"):
                 vicon_df = vicon_df[vicon_df.angle >= (lo + threshold * (hi - lo))]
             elif movement in ("elbflex"):
@@ -165,7 +176,13 @@ def apply_vicon_trimming(threshold=0.30):
                 ]
             else:
                 # TODO: Handle lower limbs.
-                ...
+                if movement in ("hipflex"):
+                    vicon_df = vicon_df[vicon_df.angle >= (lo + threshold * (hi - lo))]
+                elif movement in ("kneeflex", "hipabd", "hipext"):
+                    vicon_df = vicon_df[
+                        vicon_df.angle <= (lo + (1 - threshold) * (hi - lo))
+                    ]
+
             vicon_df.to_csv(vicon_csv, header=False)
 
 
@@ -190,8 +207,9 @@ def get_filtered_trials(movement):
         # model csv files start from 0. We need to make adjustments. Frame 0 of
         # model refers to frame 1 of vicon.
         model_df = pd.read_csv(model_csv, index_col=0)
-        model_df.index = pd.Index(range(1, len(model_df.index) + 1))
-
+        # model_df.index = pd.Index(range(1, len(model_df.index) + 1))
+        model_df.reset_index(inplace=True, drop=True)
+        # print(f"Model -------{trial_name}-{len(model_df.index)}")
         # If frame number x has NaN for model, then we should drop frame number
         # x from both model and vicon dataframes.
         joint_names = [col for col in model_df.columns if movement[:3] in col]
@@ -204,7 +222,15 @@ def get_filtered_trials(movement):
             inplace=True
         )  # drops rows (frames) with NaN in joint_name column from model dataframe
         # pick index (frames or rows) without NaN in model AND present in vicon csv
+
         vicon_df = pd.read_csv(vicon_csv, header=None, index_col=0, names=[joint_name])
+        # print(f"Vicon -------{trial_name}-{len(vicon_df.index)}")
+        # Difference = len(vicon_df.index) / len(model_df.index)
+        # print(f"Difference between Vicon-Model -------{trial_name}- {Difference}")
+        if vicon_df.shape[0] / model_df.shape[0] >= 2.0:
+            vicon_df = vicon_df.iloc[::2]
+            vicon_df.reset_index(inplace=True, drop=True)
+
         vicon_df.dropna(inplace=True)
 
         if vicon_df.empty:
@@ -212,7 +238,9 @@ def get_filtered_trials(movement):
             continue
 
         frames_to_consider = joint_angles_from_model.index.intersection(vicon_df.index)
+
         ytrue = vicon_df[joint_name][frames_to_consider].values
+        # print(len(joint_angles_from_model.index))
         ypred = joint_angles_from_model[frames_to_consider].values
         metrics = get_stats(ytrue=ytrue, ypred=ypred)
         # RMSE >= 25 or MAE >= 20 or R2 >= 0.20
@@ -251,7 +279,7 @@ def run(with_regression=False, apply_trimming=False):
             xtrain, ytrain = [], []
             reg = None
             filtered_trial_names = train_trials + test_trials
-        summary = {"AvgRMSE": 0, "AvgMAE": 0}
+        summary = {"AvgRMSE": 0, "AvgMAE": 0, "AvgR2":0}
         for trial_num, trial_name in enumerate(filtered_trial_names):
             # print(f"\n===== Trial {trial_name} =====")
             # This trial_name should be present in both model and vicon sub-dirs.
@@ -261,8 +289,8 @@ def run(with_regression=False, apply_trimming=False):
             # model csv files start from 0. We need to make adjustments. Frame 0 of
             # model refers to frame 1 of vicon.
             model_df = pd.read_csv(model_csv, index_col=0)
-            model_df.index = pd.Index(range(1, len(model_df.index) + 1))
-
+            # model_df.index = pd.Index(range(1, len(model_df.index) + 1))
+            model_df.reset_index(inplace=True, drop=True)
             # If frame number x has NaN for model, then we should drop frame number
             # x from both model and vicon dataframes.
             joint_name = [col for col in model_df.columns if movement[:3] in col][0]
@@ -272,9 +300,15 @@ def run(with_regression=False, apply_trimming=False):
             )  # drops rows (frames) with NaN in joint_name column from model dataframe
 
             # pick index (frames or rows) without NaN in model AND present in vicon csv
+
             vicon_df = pd.read_csv(
                 vicon_csv, header=None, index_col=0, names=[joint_name]
             )
+
+            if vicon_df.shape[0] / model_df.shape[0] >= 2.0:
+                vicon_df = vicon_df.iloc[::2]
+                vicon_df.reset_index(inplace=True, drop=True)
+
             vicon_df.dropna(inplace=True)
 
             if vicon_df.empty:
@@ -302,7 +336,7 @@ def run(with_regression=False, apply_trimming=False):
                         # Train a linear regression model for post-processing.
                         reg = LinearRegression().fit(xtrain.reshape(-1, 1), ytrain)
                         print(
-                            f"\nLinear Regression score after training on {num_train_trials} trials from {movement} is {reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
+                            f"\nLinear Regression score after training on {num_train_trials} trials from {movement} is {reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n\treg.intercept_ = {reg.intercept_}.\n\treg.coef_ = {reg.coef_[0]}.\n"
                         )
                     ypred_reg = reg.predict(ypred.reshape(-1, 1))
                     metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
@@ -312,9 +346,15 @@ def run(with_regression=False, apply_trimming=False):
             if metrics is not None:
                 summary["AvgRMSE"] += metrics["RMSE"]
                 summary["AvgMAE"] += metrics["MAE"]
+                summary["AvgR2"] += metrics["R2"]
+                print(
+                    f"RMSE for trial {trial_name}, movement {movement} is {metrics['RMSE']}\n"
+                    f"MAE for trial {trial_name}, movement {movement} is {metrics['MAE']}\n"
+                    f"R2 of trial {trial_name}, movement {movement} is {metrics['R2']}"
+                )
 
             # plot only for trial_num 0, 1, 2, ..., 7.
-            if trial_num >= 8:
+            if trial_num >= 3:
                 continue
 
             y_smooth = apply_smoothing(angles=ypred, window_width=WINDOW_WIDTH)
@@ -339,16 +379,17 @@ def run(with_regression=False, apply_trimming=False):
 
             y_smooth_df.plot(ax=ax, color=colors[trial_num], linewidth=5)
 
-            ax.legend()
+            ax.legend(loc='lower right')
 
         if test_trials:
             summary["AvgRMSE"] = round(summary["AvgRMSE"] / len(test_trials), 2)
             summary["AvgMAE"] = round(summary["AvgMAE"] / len(test_trials), 2)
+            summary["AvgR2"] = round(summary["AvgR2"] / len(test_trials), 2)
             print(f"Summary metrics for {movement}: {summary}")
 
         plt.title(f"{movement} angle")
         plt.ylabel("Joint Angle (Degrees)")
-        # plt.savefig(movement_path + joint_name)
+        plt.savefig(movement_path + movement)
         plt.show()
 
 
