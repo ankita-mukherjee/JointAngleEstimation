@@ -17,9 +17,9 @@ from math import sqrt
 from matplotlib import pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.linear_model import LinearRegression
+from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import Ridge
 from scipy.stats import pearsonr
-
 from definitions import ROOT_DIR
 
 
@@ -249,7 +249,7 @@ def get_filtered_trials(movement):
     return filtered_trial_names
 
 
-def run(with_regression=False, apply_trimming=False):
+def run(model_type="linear", with_regression=False, apply_trimming=False):
     plt.rcParams["figure.figsize"] = [20.00, 25.50]
     plt.rcParams["figure.autolayout"] = True
     plt.rcParams.update({"font.size": 18})
@@ -326,20 +326,49 @@ def run(with_regression=False, apply_trimming=False):
 
             metrics = None
             if with_regression:
-                if trial_name in train_trials:
-                    ytrain = np.append(ytrain, ytrue)
-                    xtrain = np.append(xtrain, ypred)
-                else:
-                    assert trial_name in test_trials
-                    assert trial_num >= num_train_trials
-                    if reg is None:
+                if model_type=="linear":
+                    if trial_name in train_trials:
+                       ytrain = np.append(ytrain, ytrue)
+                       xtrain = np.append(xtrain, ypred)
+                    else:
+                        assert trial_name in test_trials
+                        assert trial_num >= num_train_trials
+                        if reg is None:
                         # Train a linear regression model for post-processing.
-                        reg = LinearRegression().fit(xtrain.reshape(-1, 1), ytrain)
-                        print(
+                          reg = LinearRegression().fit(xtrain.reshape(-1, 1), ytrain)
+                          print(
                             f"\nLinear Regression score after training on {num_train_trials} trials from {movement} is {reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n\treg.intercept_ = {reg.intercept_}.\n\treg.coef_ = {reg.coef_[0]}.\n"
-                        )
-                    ypred_reg = reg.predict(ypred.reshape(-1, 1))
-                    metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
+                          )
+                        ypred_reg = reg.predict(ypred.reshape(-1, 1))
+                        metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
+                elif model_type== "mlp":
+                    if trial_name in train_trials:
+                        ytrain = np.append(ytrain, ytrue)
+                        xtrain = np.append(xtrain, ypred)
+
+                   # Create and train an MLPRegressor model
+                        mlp_reg= MLPRegressor(hidden_layer_sizes=(2,2),activation='relu',solver='adam',alpha=0.0001,batch_size='auto', learning_rate='constant',learning_rate_init=0.001, max_iter=100, verbose=False)
+                        mlp_reg.fit(xtrain.reshape(-1, 1), ytrain)
+
+                        #Access the weights for each layer
+                        # weights = mlp_reg.coefs_
+                        # for i, layer_weights in enumerate(weights):
+                        #     print(f"Layer {i} weights:\n{layer_weights}")
+                        print(
+                            f"\nMLP Regression score after training on {num_train_trials} trials from {movement} is {mlp_reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
+                          )
+
+                    else:
+                        assert trial_name in test_trials
+                        assert trial_num >= num_train_trials
+
+                    #Predict using the trained MLP model
+                        ypred_mlp = mlp_reg.predict(ypred.reshape(-1, 1))
+                        metrics = get_stats(ytrue=ytrue, ypred=ypred_mlp)
+                else:
+                    raise ValueError("Invalid model type")
+
+
             else:
                 metrics = get_stats(ytrue=ytrue, ypred=ypred)
 
@@ -347,11 +376,12 @@ def run(with_regression=False, apply_trimming=False):
                 summary["AvgRMSE"] += metrics["RMSE"]
                 summary["AvgMAE"] += metrics["MAE"]
                 summary["AvgR2"] += metrics["R2"]
-                print(
-                    f"RMSE for trial {trial_name}, movement {movement} is {metrics['RMSE']}\n"
-                    f"MAE for trial {trial_name}, movement {movement} is {metrics['MAE']}\n"
-                    f"R2 of trial {trial_name}, movement {movement} is {metrics['R2']}"
-                )
+                # print(
+                #     f"RMSE for trial {trial_name}, movement {movement} is {metrics['RMSE']}\n"
+                #     f"MAE for trial {trial_name}, movement {movement} is {metrics['MAE']}\n"
+                #     f"R2 of trial {trial_name}, movement {movement} is {metrics['R2']}"
+                # )
+
 
             # plot only for trial_num 0, 1, 2, ..., 7.
             if trial_num >= 3:
@@ -361,13 +391,17 @@ def run(with_regression=False, apply_trimming=False):
             y_smooth_df = pd.DataFrame(
                 {f"model angle (after smoothing) ({trial_name})": y_smooth.tolist()}
             )
+
             y_smooth_df.index = frames_to_consider[WINDOW_WIDTH - 1 :].values
+            #y_smooth_df.to_csv('sample_model.csv')
             y_smooth_df.index.names = ["frame number"]
 
             y_true_df = pd.DataFrame(
                 {f"vicon angle ({trial_name})": ytrue[WINDOW_WIDTH - 1 :].tolist()}
             )
+
             y_true_df.index = frames_to_consider[WINDOW_WIDTH - 1 :].values
+            #y_true_df.to_csv('sample_vicon.csv')
             y_true_df.index.names = ["frame number"]
 
             if ax is None:
@@ -390,7 +424,7 @@ def run(with_regression=False, apply_trimming=False):
         plt.title(f"{movement} angle")
         plt.ylabel("Joint Angle (Degrees)")
         plt.savefig(movement_path + movement)
-        plt.show()
+        # plt.show()
 
 
 if __name__ == "__main__":
