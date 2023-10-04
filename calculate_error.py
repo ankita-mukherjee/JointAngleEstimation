@@ -347,7 +347,7 @@ def run(model_type="linear", with_regression=False, apply_trimming=False):
                         xtrain = np.append(xtrain, ypred)
 
                    # Create and train an MLPRegressor model
-                        mlp_reg= MLPRegressor(hidden_layer_sizes=(2,2),activation='relu',solver='adam',alpha=0.0001,batch_size='auto', learning_rate='constant',learning_rate_init=0.001, max_iter=100, verbose=False)
+                        mlp_reg= MLPRegressor(hidden_layer_sizes=(2,2),activation='relu',solver='adam',alpha=0.0001,batch_size='auto', learning_rate='constant',learning_rate_init=0.001, max_iter=10, verbose=False)
                         mlp_reg.fit(xtrain.reshape(-1, 1), ytrain)
 
                         #Access the weights for each layer
