@@ -23,6 +23,7 @@ from scipy.stats import pearsonr
 from definitions import ROOT_DIR
 
 
+
 WINDOW_WIDTH = 10
 GEN_PATH = f"{ROOT_DIR}/gen"
 DATA_PATH = f"{ROOT_DIR}/data"
@@ -249,7 +250,11 @@ def get_filtered_trials(movement):
     return filtered_trial_names
 
 
-def run(model_type="linear", with_regression=False, apply_trimming=False):
+def run(model_type="linear", with_regression=False, apply_trimming=False,alpha=0.5):
+
+    random_seed = 2
+    np.random.seed(random_seed)
+
     plt.rcParams["figure.figsize"] = [20.00, 25.50]
     plt.rcParams["figure.autolayout"] = True
     plt.rcParams.update({"font.size": 18})
@@ -278,6 +283,9 @@ def run(model_type="linear", with_regression=False, apply_trimming=False):
             test_trials.sort()
             xtrain, ytrain = [], []
             reg = None
+            mlp_reg = None
+            ridge_reg = None
+
             filtered_trial_names = train_trials + test_trials
         summary = {"AvgRMSE": 0, "AvgMAE": 0, "AvgR2":0}
         for trial_num, trial_name in enumerate(filtered_trial_names):
@@ -341,14 +349,30 @@ def run(model_type="linear", with_regression=False, apply_trimming=False):
                           )
                         ypred_reg = reg.predict(ypred.reshape(-1, 1))
                         metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
+
                 elif model_type== "mlp":
                     if trial_name in train_trials:
                         ytrain = np.append(ytrain, ytrue)
                         xtrain = np.append(xtrain, ypred)
+                    else:
+                        assert trial_name in test_trials
+                        assert trial_num >= num_train_trials
+                        if mlp_reg is None:
 
                    # Create and train an MLPRegressor model
-                        mlp_reg= MLPRegressor(hidden_layer_sizes=(2,2),activation='relu',solver='adam',alpha=0.0001,batch_size='auto', learning_rate='constant',learning_rate_init=0.001, max_iter=10, verbose=False)
+
+                           mlp_reg = MLPRegressor(
+                           hidden_layer_sizes=(32,64,16),  # Increased complexity
+                           activation='relu',
+                           solver='adam',
+                           alpha=0.0001,
+                           batch_size='auto',
+                           learning_rate='constant',
+                           learning_rate_init=0.001,
+                           max_iter=500,  # Increased number of iterations
+                           verbose=False)
                         mlp_reg.fit(xtrain.reshape(-1, 1), ytrain)
+
 
                         #Access the weights for each layer
                         # weights = mlp_reg.coefs_
@@ -357,30 +381,42 @@ def run(model_type="linear", with_regression=False, apply_trimming=False):
                         print(
                             f"\nMLP Regression score after training on {num_train_trials} trials from {movement} is {mlp_reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
                           )
+                        #Predict using the trained MLP model
+                        ypred_reg = mlp_reg.predict(ypred.reshape(-1, 1))
+                        metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
 
+                elif model_type == "ridge":  # Handle Ridge Regression
+                    if trial_name in train_trials:
+                        ytrain = np.append(ytrain, ytrue)
+                        xtrain = np.append(xtrain, ypred)
                     else:
                         assert trial_name in test_trials
                         assert trial_num >= num_train_trials
-
-                    #Predict using the trained MLP model
-                        ypred_mlp = mlp_reg.predict(ypred.reshape(-1, 1))
-                        metrics = get_stats(ytrue=ytrue, ypred=ypred_mlp)
+                        if ridge_reg is None:
+                            ridge_reg = Ridge(alpha=alpha, random_state=random_seed)  # Create Ridge Regression model
+                            print(f"value of alpha: {alpha}")
+                            ridge_reg.fit(xtrain.reshape(-1, 1), ytrain)
+                            print(
+                                f"\nRidge Regression score after training on {num_train_trials} trials from {movement} is {ridge_reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
+                            )
+                        ypred_reg = ridge_reg.predict(ypred.reshape(-1, 1))
+                        metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
                 else:
                     raise ValueError("Invalid model type")
 
 
-            else:
-                metrics = get_stats(ytrue=ytrue, ypred=ypred)
+
+
 
             if metrics is not None:
                 summary["AvgRMSE"] += metrics["RMSE"]
                 summary["AvgMAE"] += metrics["MAE"]
                 summary["AvgR2"] += metrics["R2"]
-                # print(
-                #     f"RMSE for trial {trial_name}, movement {movement} is {metrics['RMSE']}\n"
-                #     f"MAE for trial {trial_name}, movement {movement} is {metrics['MAE']}\n"
-                #     f"R2 of trial {trial_name}, movement {movement} is {metrics['R2']}"
-                # )
+                print(
+                    f"RMSE for trial {trial_name}, movement {movement} is {metrics['RMSE']}\n"
+                    f"MAE for trial {trial_name}, movement {movement} is {metrics['MAE']}\n"
+                    f"R2 of trial {trial_name}, movement {movement} is {metrics['R2']}"
+                )
 
 
             # plot only for trial_num 0, 1, 2, ..., 7.
