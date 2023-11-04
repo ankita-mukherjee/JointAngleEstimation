@@ -21,12 +21,11 @@ def process_video(movement_group_path):
                 success,
                 image,
             ) = vidcap.read()  # Grabs, decodes and returns the next video frame
-
             frame_num = 0
             while success:
-                cv2.imwrite(
-                    trial_dir_path + f"{frame_num}.jpg", image
-                )  # save frame as JPEG file
-                success, image = vidcap.read()
+                cv2.imwrite(trial_dir_path + f"{frame_num}.jpg", image)
                 frame_num += 1
+                # cv2.imwrite(trial_dir_path + f"{frame_num}.jpg", image)
+                # frame_num += 1
+                success, image = vidcap.read()
             print("Processing success", frame_num, "frames saved")

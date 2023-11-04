@@ -108,14 +108,30 @@ def _zero_score_for_invalid_upper_ratio(
     wrist = kpts_absolute_xy.loc[f"{side}_wrist"]
     elbow = kpts_absolute_xy.loc[f"{side}_elbow"]
     shoulder = kpts_absolute_xy.loc[f"{side}_shoulder"]
+
+    hip = kpts_absolute_xy.loc[f"{side}_hip"]
+    knee = kpts_absolute_xy.loc[f"{side}_knee"]
+    ankle = kpts_absolute_xy.loc[f"{side}_ankle"]
+
     elbow_to_wrist = math.hypot(elbow[0] - wrist[0], elbow[1] - wrist[1])
     shoulder_to_elbow = math.hypot(shoulder[0] - elbow[0], shoulder[1] - elbow[1])
-    ratio = shoulder_to_elbow / elbow_to_wrist
-    if not (0.8 < ratio < 1.2):
-        print(f"Found (sho-elb) : (elb-wrist) ratio {ratio} outside (0.8, 1.2).")
-        kpts_scores.loc[f"{side}_wrist"] = 0.0
-        kpts_scores.loc[f"{side}_elbow"] = 0.0
-        kpts_scores.loc[f"{side}_shoulder"] = 0.0
+    hip_to_knee = math.hypot(hip[0] - knee[0], hip[1] - knee[1])
+    knee_to_ankle = math.hypot(knee[0] - ankle[0], knee[1] - ankle[1])
+
+    ratio_upper = shoulder_to_elbow / elbow_to_wrist
+    ratio_lower = hip_to_knee / knee_to_ankle
+
+    # if not (0.8 < ratio_upper < 1.2):
+    #     # print(f"Found (sho-elb) : (elb-wrist) ratio {ratio_upper} outside (0.8, 1.2).")
+    #     kpts_scores.loc[f"{side}_wrist"] = 0.0
+    #     kpts_scores.loc[f"{side}_elbow"] = 0.0
+    #     kpts_scores.loc[f"{side}_shoulder"] = 0.0
+
+    if not (0.8 < ratio_lower < 1.2):
+        # print(f"Found (hip-knee) : (knee-ankle) ratio {ratio_lower} outside (0.8, 1.2).")
+        kpts_scores.loc[f"{side}_hip"] = 0.0
+        kpts_scores.loc[f"{side}_knee"] = 0.0
+        kpts_scores.loc[f"{side}_ankle"] = 0.0
 
 
 def _keypoints_and_edges_for_display(
@@ -186,10 +202,10 @@ def _keypoints_and_edges_for_display(
         low_confidence_indices = kpts_absolute_xy[
             kpts_scores <= keypoint_threshold
         ].index
-        if not low_confidence_indices.empty:
-            print(
-                f"Found low confidence scores for {[(ind, kpts_scores.loc[ind]) for ind in low_confidence_indices]}."
-            )
+        # if not low_confidence_indices.empty:
+        # print(
+        #     f"Found low confidence scores for {[(ind, kpts_scores.loc[ind]) for ind in low_confidence_indices]}."
+        # )
 
         kpts_above_thresh_absolute = kpts_absolute_xy[kpts_scores > keypoint_threshold]
         keypoints_all.append(kpts_above_thresh_absolute)
@@ -559,9 +575,9 @@ def process_frames_and_generate_csv(data_path="./data/", skip_process_video=Fals
                         try:
                             angle = round(joint_angle(joint, keypoint_locs), 2)
                         except KeyError:
-                            print(
-                                f"Skipping frame {frame} for joint {joint} because of low confidence."
-                            )
+                            # print(
+                            #     f"Skipping frame {frame} for joint {joint} because of low confidence."
+                            # )
                             continue
 
                         # map from joint_name to joint_angle

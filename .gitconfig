@@ -1,0 +1,9 @@
+[user]
+  name = Ankita Mukherjee
+  email = ankchakrabory22@gmail.com
+[push]
+  default = simple
+[remote]
+  pushdefault = myrepo
+[credential]
+  helper = cache --timeout=3600
