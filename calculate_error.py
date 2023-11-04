@@ -299,7 +299,13 @@ def get_filtered_trials(movement):
     return filtered_trial_names
 
 
-def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=0.5):
+def run(
+    model_type="linear",
+    with_regression=False,
+    apply_trimming=False,
+    movements=None,  # Otherwise specify list e.g. ["elbflex"]
+    alpha=0.5,  # For MLP and Ridge models
+):
     random_seed = 42
     np.random.seed(random_seed)
 
@@ -308,10 +314,15 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
     plt.rcParams.update({"font.size": 18})
     ax = None
     colors = "bgrcmykw"
+
     collect_model_vicon_csvs()
+
     if apply_trimming:
         apply_vicon_trimming()
-    movements = next(os.walk(GEN_PATH))[1]
+
+    if movements is None:
+        movements = next(os.walk(GEN_PATH))[1]
+
     for movement in movements:
         assert movement in MOVEMENTS
         movement_path = f"{GEN_PATH}/{movement}/"
@@ -331,16 +342,50 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
             test_trials = filtered_trial_names[num_train_trials:]
             train_trials.sort()
             test_trials.sort()
-            xtrain, ytrain = [], []
-            reg = None
-            mlp_reg = None
-            ridge_reg = None
-            svm_reg = None
+
+            xtrain = []
+            ytrain = []
+
+            xtrain_0 = []
+            xtrain_1 = []
+            xtrain_2 = []
+            xtrain_3 = []
+            xtrain_4 = []
+
+            ytrain_0 = []
+            ytrain_1 = []
+            ytrain_2 = []
+            ytrain_3 = []
+            ytrain_4 = []
+
+            model_trained = False
             filtered_trial_names = train_trials + test_trials
 
-        summary = {"AvgRMSE": 0, "AvgMAE": 0, "AvgR2": 0}
-        max_rmse = 0
-        movement_rmse_data = []
+        summary = {
+            "0": {"AvgRMSE": 0, "AvgMAE": 0, "AvgR2": 0, "Count": 0},
+            "1": {"AvgRMSE": 0, "AvgMAE": 0, "AvgR2": 0, "Count": 0},
+            "2": {"AvgRMSE": 0, "AvgMAE": 0, "AvgR2": 0, "Count": 0},
+            "3": {"AvgRMSE": 0, "AvgMAE": 0, "AvgR2": 0, "Count": 0},
+            "4": {"AvgRMSE": 0, "AvgMAE": 0, "AvgR2": 0, "Count": 0},
+            "combined": {"AvgRMSE": 0, "AvgMAE": 0, "AvgR2": 0, "Count": 0},
+        }
+        max_rmse = {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "combined": 0,
+        }
+        max_rmse_trial = {}
+        movement_rmse_data = {
+            "0": [],
+            "1": [],
+            "2": [],
+            "3": [],
+            "4": [],
+            "combined": [],
+        }
         ytrue_list = []
         ypred_list = []
         for trial_num, trial_name in enumerate(filtered_trial_names):
@@ -387,7 +432,7 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
             ytrue = vicon_df[joint_name][frames_to_consider].values
             ypred = joint_angles_from_model[frames_to_consider].values
 
-            metrics = None
+            metrics = {}
             ypred_reg = None
             if with_regression:
                 if model_type == "linear":
@@ -397,34 +442,115 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                     else:
                         assert trial_name in test_trials
                         assert trial_num >= num_train_trials
-                        if reg is None:
+                        if not model_trained:
                             # Train a linear regression model for post-processing.
                             reg = LinearRegression().fit(xtrain.reshape(-1, 1), ytrain)
                             print(
                                 f"\nLinear Regression score after training on {num_train_trials} trials from {movement} is {reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n\treg.intercept_ = {reg.intercept_}.\n\treg.coef_ = {reg.coef_[0]}.\n"
                             )
+                            model_trained = True
+
                         ypred_reg = reg.predict(ypred.reshape(-1, 1))
                         metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
 
                 elif model_type == "non-linear":
+                    frames_0 = np.where((ypred >= 0) & (ypred < 50))
+                    frames_1 = np.where((ypred >= 50) & (ypred < 80))
+                    frames_2 = np.where((ypred >= 80) & (ypred < 110))
+                    frames_3 = np.where((ypred >= 110) & (ypred < 150))
+                    frames_4 = np.where((ypred >= 150) & (ypred < 180))
                     if trial_name in train_trials:
-                        ytrain = np.append(ytrain, ytrue)
-                        xtrain = np.append(xtrain, ypred)
+                        ytrain_0 = np.append(ytrain_0, ytrue[frames_0])
+                        ytrain_1 = np.append(ytrain_1, ytrue[frames_1])
+                        ytrain_2 = np.append(ytrain_2, ytrue[frames_2])
+                        ytrain_3 = np.append(ytrain_3, ytrue[frames_3])
+                        ytrain_4 = np.append(ytrain_4, ytrue[frames_4])
+
+                        xtrain_0 = np.append(xtrain_0, ypred[frames_0])
+                        xtrain_1 = np.append(xtrain_1, ypred[frames_1])
+                        xtrain_2 = np.append(xtrain_2, ypred[frames_2])
+                        xtrain_3 = np.append(xtrain_3, ypred[frames_3])
+                        xtrain_4 = np.append(xtrain_4, ypred[frames_4])
                     else:
                         assert trial_name in test_trials
                         assert trial_num >= num_train_trials
-                        if reg is None:
+                        if not model_trained:
                             # Train a linear regression model with polynomial features for post-processing.
-                            degree = 3
-                            reg = make_pipeline(
-                                PolynomialFeatures(degree), LinearRegression()
-                            )
-                            reg.fit(xtrain.reshape(-1, 1), ytrain)
+                            reg_0 = LinearRegression()
+                            reg_1 = LinearRegression()
+                            reg_2 = LinearRegression()
+                            reg_3 = LinearRegression()
+                            reg_4 = LinearRegression()
+
+                            reg_0.fit(xtrain_0.reshape(-1, 1), ytrain_0)
+                            reg_1.fit(xtrain_1.reshape(-1, 1), ytrain_1)
+                            reg_2.fit(xtrain_2.reshape(-1, 1), ytrain_2)
+                            reg_3.fit(xtrain_3.reshape(-1, 1), ytrain_3)
+                            reg_4.fit(xtrain_4.reshape(-1, 1), ytrain_4)
+
+                            score_0 = reg_0.score(xtrain_0.reshape(-1, 1), ytrain_0)
+                            score_1 = reg_1.score(xtrain_1.reshape(-1, 1), ytrain_1)
+                            score_2 = reg_2.score(xtrain_2.reshape(-1, 1), ytrain_2)
+                            score_3 = reg_3.score(xtrain_3.reshape(-1, 1), ytrain_3)
+                            score_4 = reg_4.score(xtrain_4.reshape(-1, 1), ytrain_4)
+
                             print(
-                                f"\nLinear Regression with PolynomialFeatures(degree={degree}) score after training on {num_train_trials} trials from {movement} is {reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
+                                f"\nLinear Regression score after training on {num_train_trials} trials from {movement} is "
+                                f"{score_0}.\n"
+                                f"{score_1}.\n"
+                                f"{score_2}.\n"
+                                f"{score_3}.\n"
+                                f"{score_4}.\n"
+                                f"\tTotal trials = {num_trials}.\n"
+                                f"\tTraining trials = {len(train_trials)}.\n"
+                                f"\tTesting trials = {len(test_trials)}.\n"
                             )
-                        ypred_reg = reg.predict(ypred.reshape(-1, 1))
-                        metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
+
+                            model_trained = True
+
+                        # Predict using trained model.
+                        ypred_reg = np.copy(ypred)
+                        if len(frames_0[0]) > 0:
+                            ypred_reg[frames_0] = reg_0.predict(
+                                ypred[frames_0].reshape(-1, 1)
+                            )
+                            metrics["0"] = get_stats(
+                                ytrue=ytrue[frames_0], ypred=ypred_reg[frames_0]
+                            )
+
+                        if len(frames_1[0]) > 0:
+                            ypred_reg[frames_1] = reg_1.predict(
+                                ypred[frames_1].reshape(-1, 1)
+                            )
+                            metrics["1"] = get_stats(
+                                ytrue=ytrue[frames_1], ypred=ypred_reg[frames_1]
+                            )
+
+                        if len(frames_2[0]) > 0:
+                            ypred_reg[frames_2] = reg_2.predict(
+                                ypred[frames_2].reshape(-1, 1)
+                            )
+                            metrics["2"] = get_stats(
+                                ytrue=ytrue[frames_2], ypred=ypred_reg[frames_2]
+                            )
+
+                        if len(frames_3[0]) > 0:
+                            ypred_reg[frames_3] = reg_3.predict(
+                                ypred[frames_3].reshape(-1, 1)
+                            )
+                            metrics["3"] = get_stats(
+                                ytrue=ytrue[frames_3], ypred=ypred_reg[frames_3]
+                            )
+
+                        if len(frames_4[0]) > 0:
+                            ypred_reg[frames_4] = reg_4.predict(
+                                ypred[frames_4].reshape(-1, 1)
+                            )
+                            metrics["4"] = get_stats(
+                                ytrue=ytrue[frames_4], ypred=ypred_reg[frames_4]
+                            )
+
+                        metrics["combined"] = get_stats(ytrue=ytrue, ypred=ypred_reg)
 
                 elif model_type == "mlp":
                     if trial_name in train_trials:
@@ -433,7 +559,7 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                     else:
                         assert trial_name in test_trials
                         assert trial_num >= num_train_trials
-                        if mlp_reg is None:
+                        if not model_trained:
                             # Create and train an MLPRegressor model
                             mlp_reg = MLPRegressor(
                                 hidden_layer_sizes=(32, 64, 128),
@@ -455,6 +581,7 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                             print(
                                 f"\nMLP Regression score after training on {num_train_trials} trials from {movement} is {mlp_reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
                             )
+                            model_trained = True
 
                         # Predict using the trained MLP model
                         ypred_reg = mlp_reg.predict(ypred.reshape(-1, 1))
@@ -467,7 +594,7 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                     else:
                         assert trial_name in test_trials
                         assert trial_num >= num_train_trials
-                        if ridge_reg is None:
+                        if not model_trained:
                             ridge_reg = Ridge(
                                 alpha=alpha, random_state=random_seed
                             )  # Create Ridge Regression model
@@ -476,6 +603,8 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                             print(
                                 f"\nRidge Regression score after training on {num_train_trials} trials from {movement} is {ridge_reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
                             )
+                            model_trained = True
+
                         ypred_reg = ridge_reg.predict(ypred.reshape(-1, 1))
                         metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
 
@@ -486,7 +615,7 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                     else:
                         assert trial_name in test_trials
                         assert trial_num >= num_train_trials
-                        if svm_reg is None:
+                        if not model_trained:
                             svm_reg = make_pipeline(
                                 StandardScaler(),
                                 SVR(
@@ -508,6 +637,8 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                             print(
                                 f"\nSVM Regression score after training on {num_train_trials} trials from {movement} is {svm_reg.score(xtrain.reshape(-1, 1), ytrain)}.\n\tTotal trials = {num_trials}.\n\tTraining trials = {len(train_trials)}.\n\tTesting trials = {len(test_trials)}.\n"
                             )
+                            model_trained = True
+
                         ypred_reg = svm_reg.predict(ypred.reshape(-1, 1))
                         metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
 
@@ -518,7 +649,7 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                     else:
                         assert trial_name in test_trials
                         assert trial_num >= num_train_trials
-                        if reg is None:
+                        if not model_trained:
                             # Define the hyperparameter grid for SVR
                             param_grid = {
                                 "C": [1],
@@ -541,8 +672,7 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                             # Get the best hyperparameters and best model
                             # best_params = grid_search.best_params_
                             reg = grid_search
-
-                            # print(f"Best hyperparameters: {best_params}")
+                            model_trained = True
 
                         ypred_reg = reg.predict(ypred.reshape(-1, 1))
                         print(
@@ -556,19 +686,17 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
             ytrue_list.append(ytrue)
             ypred_list.append(ypred)
 
-            if metrics is not None:
-                summary["AvgRMSE"] += metrics["RMSE"]
-                summary["AvgMAE"] += metrics["MAE"]
-                summary["AvgR2"] += metrics["R2"]
-                # print(
-                #     f"RMSE for trial {trial_name}, movement {movement} is {metrics['RMSE']}\n"
-                #     f"MAE for trial {trial_name}, movement {movement} is {metrics['MAE']}\n"
-                #     f"R2 of trial {trial_name}, movement {movement} is {metrics['R2']}"
-                # )
-                if metrics["RMSE"] > max_rmse:
-                    max_rmse = metrics["RMSE"]
-                    max_rmse_trial = trial_name
-                movement_rmse_data.append(metrics["RMSE"])
+            if model_trained:
+                for model_num in ("0", "1", "2", "3", "4", "combined"):
+                    if model_num in metrics:
+                        summary[model_num]["AvgRMSE"] += metrics[model_num]["RMSE"]
+                        summary[model_num]["AvgMAE"] += metrics[model_num]["MAE"]
+                        summary[model_num]["AvgR2"] += metrics[model_num]["R2"]
+                        summary[model_num]["Count"] += 1
+                        movement_rmse_data[model_num].append(metrics[model_num]["RMSE"])
+                        if metrics[model_num]["RMSE"] > max_rmse[model_num]:
+                            max_rmse[model_num] = metrics[model_num]["RMSE"]
+                            max_rmse_trial[model_num] = trial_name
 
             # plot only for trial_num 0, 1, 2, ..., 7.
             if trial_num >= 3:
@@ -602,7 +730,7 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
 
             ax.legend(loc="lower right")
 
-        if movement in ["elbflex", "shoext"]:
+        if movement in ["elbflex"]:
             save_dir = f"plots/{movement}"
             train_save_dir = f"{save_dir}/train"
             test_save_dir = f"{save_dir}/test"
@@ -611,8 +739,45 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
             for trial_name, ytrue, ypred in zip(
                 filtered_trial_names, ytrue_list, ypred_list
             ):
-                ypred_reg = reg.predict(ypred.reshape(-1, 1))
+                frames_0 = np.where((ypred >= 0) & (ypred < 50))
+                frames_1 = np.where((ypred >= 50) & (ypred < 80))
+                frames_2 = np.where((ypred >= 80) & (ypred < 110))
+                frames_3 = np.where((ypred >= 110) & (ypred < 150))
+                frames_4 = np.where((ypred >= 150) & (ypred < 180))
+                # Predict using trained model.
+                ypred_reg = np.copy(ypred)
+                if len(frames_0[0]) > 0:
+                    ypred_reg[frames_0] = reg_0.predict(ypred[frames_0].reshape(-1, 1))
+                    metrics["0"] = get_stats(
+                        ytrue=ytrue[frames_0], ypred=ypred_reg[frames_0]
+                    )
+
+                if len(frames_1[0]) > 0:
+                    ypred_reg[frames_1] = reg_1.predict(ypred[frames_1].reshape(-1, 1))
+                    metrics["1"] = get_stats(
+                        ytrue=ytrue[frames_1], ypred=ypred_reg[frames_1]
+                    )
+
+                if len(frames_2[0]) > 0:
+                    ypred_reg[frames_2] = reg_2.predict(ypred[frames_2].reshape(-1, 1))
+                    metrics["2"] = get_stats(
+                        ytrue=ytrue[frames_2], ypred=ypred_reg[frames_2]
+                    )
+
+                if len(frames_3[0]) > 0:
+                    ypred_reg[frames_3] = reg_3.predict(ypred[frames_3].reshape(-1, 1))
+                    metrics["3"] = get_stats(
+                        ytrue=ytrue[frames_3], ypred=ypred_reg[frames_3]
+                    )
+
+                if len(frames_4[0]) > 0:
+                    ypred_reg[frames_4] = reg_4.predict(ypred[frames_4].reshape(-1, 1))
+                    metrics["4"] = get_stats(
+                        ytrue=ytrue[frames_4], ypred=ypred_reg[frames_4]
+                    )
+
                 metrics = get_stats(ytrue=ytrue, ypred=ypred_reg)
+
                 df = pd.DataFrame(
                     {"vicon": ytrue, "model": ypred, "model+reg": ypred_reg}
                 )
@@ -660,12 +825,17 @@ def run(model_type="linear", with_regression=False, apply_trimming=False, alpha=
                 plt.close()  # Close the current plot to free up memory
 
         if test_trials:
-            summary["AvgRMSE"] = round(summary["AvgRMSE"] / len(test_trials), 2)
-            summary["AvgMAE"] = round(summary["AvgMAE"] / len(test_trials), 2)
-            summary["AvgR2"] = round(summary["AvgR2"] / len(test_trials), 2)
+            for model_num in ("0", "1", "2", "3", "4", "combined"):
+                for stat in ("AvgRMSE", "AvgMAE", "AvgR2"):
+                    summary[model_num][stat] = round(
+                        summary[model_num][stat] / summary[model_num]["Count"], 2
+                    )
+
             print(f"Summary metrics for {movement}: {summary}")
             print(f"Worst RMSE: {max_rmse}, trial: {max_rmse_trial}")
-            rmse_summary(movement_rmse_data)
+            for model_num in ("0", "1", "2", "3", "4", "combined"):
+                print(f"RMSE Summary for {model_num}")
+                rmse_summary(movement_rmse_data[model_num])
 
         plt.title(f"{movement} angle")
         plt.ylabel("Joint Angle (Degrees)")
